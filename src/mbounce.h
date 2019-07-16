@@ -9,49 +9,49 @@ struct mbounce_xy {
    int16_t y;
 };
 
-#ifndef BOUNCE_C
+#ifndef MBOUNCE_C
 extern
-#endif /* BOUNCE_C */
+#endif /* MBOUNCE_C */
 const struct mbounce_xy g_mbounce_left
-#ifdef BOUNCE_C
+#ifdef MBOUNCE_C
 = { -1,  0 }
-#endif /* BOUNCE_C */
+#endif /* MBOUNCE_C */
 ;
 
-#ifndef BOUNCE_C
+#ifndef MBOUNCE_C
 extern
-#endif /* BOUNCE_C */
+#endif /* MBOUNCE_C */
 const struct mbounce_xy g_mbounce_right
-#ifdef BOUNCE_C
+#ifdef MBOUNCE_C
 = {  1,  0 }
-#endif /* BOUNCE_C */
+#endif /* MBOUNCE_C */
 ;
 
-#ifndef BOUNCE_C
+#ifndef MBOUNCE_C
 extern
-#endif /* BOUNCE_C */
+#endif /* MBOUNCE_C */
 const struct mbounce_xy g_mbounce_up
-#ifdef BOUNCE_C
+#ifdef MBOUNCE_C
 = {  0, -1 }
-#endif /* BOUNCE_C */
+#endif /* MBOUNCE_C */
 ;
 
-#ifndef BOUNCE_C
+#ifndef MBOUNCE_C
 extern
-#endif /* BOUNCE_C */
+#endif /* MBOUNCE_C */
 const struct mbounce_xy g_mbounce_down
-#ifdef BOUNCE_C
+#ifdef MBOUNCE_C
 = {  0,  1 }
-#endif /* BOUNCE_C */
+#endif /* MBOUNCE_C */
 ;
 
-#ifndef BOUNCE_C
+#ifndef MBOUNCE_C
 extern
-#endif /* BOUNCE_C */
+#endif /* MBOUNCE_C */
 const struct mbounce_xy g_mbounce_accel_max
-#ifdef BOUNCE_C
+#ifdef MBOUNCE_C
 = { 3, 5 }
-#endif /* BOUNCE_C */
+#endif /* MBOUNCE_C */
 ;
 
 void mbounce_accel(

@@ -1,4 +1,5 @@
 
+#define MBOUNCE_C
 #include "mbounce.h"
 
 void mbounce_accel(
