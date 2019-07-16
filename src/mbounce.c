@@ -1,17 +1,5 @@
 
-#include <stdint.h>
-
-struct mbounce_xy {
-   int16_t x;
-   int16_t y;
-};
-
-const struct mbounce_xy g_mbounce_left    = { -1,  0 };
-const struct mbounce_xy g_mbounce_right   = {  1,  0 };
-const struct mbounce_xy g_mbounce_up      = {  0, -1 };
-const struct mbounce_xy g_mbounce_down    = {  0,  1 };
-
-const struct mbounce_xy g_mbounce_accel_max = { 3, 5 };
+#include "mbounce.h"
 
 void mbounce_accel(
    struct mbounce_xy* factor,

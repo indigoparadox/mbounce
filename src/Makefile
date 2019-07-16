@@ -2,7 +2,7 @@
 # vim: ft=make noexpandtab
 
 OBJECTS := mbounce.o
-OBJECTS_TESTS := check.o check_mbounce.o check_mext2.o
+OBJECTS_TESTS := check.o check_mbounce.o
 
 BINDIR_LINUX = ../bin/linux
 BINDIR_MSP430G2553 = ../bin/msp430g2553
@@ -32,7 +32,7 @@ test_mbounce: OBJDIR := ../obj/test_mbounce
 
 all: $(BINDIR_LINUX)/libmbounce.a $(BINDIR_MSP430G2553)/libmbounce.a
 
-test_mbounce: disk.o $(BINDIR_LINUX)/libmbounce.a $(addprefix ../obj/linux/,$(OBJECTS_TESTS))
+test_mbounce: $(BINDIR_LINUX)/libmbounce.a $(addprefix ../obj/linux/,$(OBJECTS_TESTS))
 	$(CC) -o $@ $^ -L$(BINDIR_LINUX) $(LDFLAGS)
 
 $(BINDIR_LINUX)/libmbounce.a: $(addprefix ../obj/linux/,$(OBJECTS))
