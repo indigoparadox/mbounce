@@ -131,7 +131,8 @@ class Mobile:
    def set_accel_max( self, accel_max ):
       self.accel_max = accel_max
 
-   def set_sprites( self, sprites, walk_list, dir_in, sprite_margin=0 ):
+   def set_sprites( self, sprites, walk_list, dir_in, \
+   colorkey=None, sprite_margin=0 ):
 
       # Cut out the sprites.
       for xy in walk_list:
@@ -140,6 +141,12 @@ class Mobile:
             sprite_margin + (SPRITE_SIZE_PX * xy[X]),
             sprite_margin + (SPRITE_SIZE_PX * xy[Y]),
             SPRITE_SIZE_PX, SPRITE_SIZE_PX) )
+         if colorkey:
+            sprite.set_colorkey( colorkey )
+         else:
+            # If no color key provided, grab probable BG color.
+            trans_color = sprite.get_at( (0, 0) )
+            sprite.set_colorkey( trans_color )
          self.sprites[dir_in].append( sprite )
 
          # Make inverted copies for opposite direction.
@@ -168,11 +175,17 @@ def main():
    sprites = pygame.image.load( 'spritesheet.png' )
    bgs = pygame.image.load( 'backgrounds.png' )
 
+   bg = pygame.Surface( (231, 63) )
+   bg.blit( bgs, (0, 0), (0, 0, 231, 63) )
+   bg = pygame.transform.scale( bg, (1173, 320) )
+
    player = Mobile( (5, 315) )
    player.set_sprites( \
-      sprites, [(28, 0), (29, 0)], SPRITE_KEY_RIGHT, sprite_margin=1 )
+      sprites, [(28, 0), (29, 0)], SPRITE_KEY_RIGHT,
+      sprite_margin=1 )
    player.set_sprites( \
-      sprites, [(26, 0), (27, 0)], SPRITE_KEY_RIGHT_JUMP, sprite_margin=1 )
+      sprites, [(26, 0), (27, 0)], SPRITE_KEY_RIGHT_JUMP,
+      sprite_margin=1 )
    player.set_accel_max( (6, 5) )
 
    # Setup player sprites.
@@ -207,7 +220,8 @@ def main():
       # Draw the current state of things.
       player.update()
       player.animate()
-      screen.fill( (0, 0, 0) )
+      #screen.fill( (0, 0, 0) )
+      screen.blit( bg, (0, 0) )
 
       screen.blit( player.get_sprite(), \
          (player.coords[X], player.coords[Y] - SPRITE_SIZE_PX), \
