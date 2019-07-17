@@ -8,31 +8,35 @@ ACCEL_RIGHT = ( 1, 0)
 ACCEL_DOWN  = ( 0, 1)
 ACCEL_UP    = ( 0,-1)
 
-SCREEN_WIDTH = 640
-SCREEN_HEIGHT = 320
-
 SPRITE_KEY_LEFT = 0
 SPRITE_KEY_RIGHT = 1
 SPRITE_KEY_LEFT_JUMP = 2
 SPRITE_KEY_RIGHT_JUMP = 3
 
-SPRITE_SZ_PX = 32
+SCREEN_MULT = 2
+SPRITESHEET_MARGIN_PX = 1
+SPRITE_SZ_PX = 21
+SPRITE_BORDER_PX = 1
+SPRITE_OUTER_SZ_PX = (2 * SPRITE_BORDER_PX) + SPRITE_SZ_PX
+
+SCREEN_WIDTH = 16 * SPRITE_SZ_PX
+SCREEN_HEIGHT = 10 * SPRITE_SZ_PX
 
 X = 0
 Y = 1
 
 #    1, 2, 3, 4, 5, 6, 7, 8, 9,10,11,12,13,14,15,16,17,18,19,20
 MAP = [
-   [-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1, 0],
-   [-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1, 0],
-   [-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1, 0],
-   [-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1, 0],
-   [-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1, 0],
-   [-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1, 0],
-   [-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1, 0],
-   [-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1, 0],
-   [-1,-1,-1,-1,-1,-1,-1,126,123,127,-1,-1,-1,-1,-1,-1,-1,-1,-1, 0],
-   [123,123,123,123,123,123,123,123,123,123,123,123,123,123,123,123,123,123,123,123]
+   [ -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1],
+   [ -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1],
+   [ -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1],
+   [ -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1],
+   [ -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1],
+   [ -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1],
+   [ -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1],
+   [ -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1],
+   [ -1, -1, -1, -1, -1, -1, -1,126,123,127, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1],
+   [123,123,123,123,123,123,123,156,152,157,123,123,123,123,123,123,123,123,123,123]
 ]
 
 class Mobile:
@@ -41,7 +45,6 @@ class Mobile:
    jump_decel_inc = 1
    jump_rate = -20
    accel_max = (3, 5)
-   sprite_sz = 32
 
    def __init__( self, coords ):
       self.sprites = [[], [], [], []]
@@ -150,12 +153,12 @@ class Mobile:
    def get_floor( self ):
       # Convert blocks to pixels.
       if self.coords[1] >= 0:
-         hunt_block = (self.coords[0] / self.sprite_sz, \
-            (self.coords[1] / self.sprite_sz) - 1)
+         hunt_block = (self.coords[0] / SPRITE_SZ_PX, \
+            (self.coords[1] / SPRITE_SZ_PX) - 1)
       else:
-         hunt_block = (self.coords[0] / self.sprite_sz, 1)
+         hunt_block = (self.coords[0] / SPRITE_SZ_PX, 1)
       #assert( hunt_block[1] > 0 and \
-      #   hunt_block[1] * self.sprite_sz < SCREEN_HEIGHT )
+      #   hunt_block[1] * SPRITE_SZ_PX < SCREEN_HEIGHT )
 
       # Search for the floor in this column.
       while hunt_block[1] < len( MAP ) - 1 and \
@@ -163,11 +166,11 @@ class Mobile:
       MAP[hunt_block[1]][hunt_block[0]] < 0:
          hunt_block = (hunt_block[0], hunt_block[1] + 1)
 
-      floor = hunt_block[1] * self.sprite_sz
-      if floor < SCREEN_HEIGHT:
+      floor = hunt_block[1] * SPRITE_SZ_PX
+      if floor < (SCREEN_MULT * SCREEN_HEIGHT):
          return floor
       else:
-         return SCREEN_HEIGHT
+         return (SCREEN_MULT * SCREEN_HEIGHT)
 
    def get_sprite( self ):
       return self.sprites[self.facing][self.sprite_frame_seq]
@@ -176,18 +179,18 @@ class Mobile:
       self.accel_max = accel_max
 
    def set_sprites( self, sprites, walk_list, dir_in, \
-   colorkey=None, sprite_in_sz=0, sprite_margin=0 ):
+   colorkey=None, sprite_margin=0 ):
 
       # Cut out the sprites.
       for xy in walk_list:
-         sprite = pygame.Surface( (sprite_in_sz, sprite_in_sz) )
+         sprite = pygame.Surface( \
+            (SCREEN_MULT * SPRITE_SZ_PX, SCREEN_MULT * SPRITE_SZ_PX) )
          sprite.blit( sprites, (0, 0), (
-            sprite_margin + (sprite_in_sz * xy[X]),
-            sprite_margin + (sprite_in_sz * xy[Y]),
-            sprite_in_sz, sprite_in_sz) )
-         if sprite_in_sz:
-            sprite = pygame.transform.scale( \
-               sprite, (self.sprite_sz, self.sprite_sz) )
+            SCREEN_MULT * (SPRITESHEET_MARGIN_PX + SPRITE_BORDER_PX + \
+               (SPRITE_OUTER_SZ_PX * xy[X])),
+            SCREEN_MULT * (SPRITESHEET_MARGIN_PX + SPRITE_BORDER_PX + \
+               (SPRITE_OUTER_SZ_PX * xy[Y])),
+            SCREEN_MULT * SPRITE_SZ_PX, SCREEN_MULT * SPRITE_SZ_PX) )
          if colorkey:
             sprite.set_colorkey( colorkey )
          else:
@@ -212,26 +215,33 @@ def main():
    key_accel = (0, 0)
 
    pygame.init()
-   screen = pygame.display.set_mode( (SCREEN_WIDTH, SCREEN_HEIGHT) )
+   screen = pygame.display.set_mode( \
+      (SCREEN_MULT * SCREEN_WIDTH, SCREEN_MULT * SCREEN_HEIGHT) )
    running = True
    clock = pygame.time.Clock()
 
    sprites = pygame.image.load( 'spritesheet.png' )
-   sprites_sz = 23
-   bgs = pygame.image.load( 'backgrounds.png' )
+   if 1 < SCREEN_MULT:
+      sprites = pygame.transform.scale( \
+         sprites, \
+         ((sprites.get_width() * SCREEN_MULT), \
+         (sprites.get_height() * SCREEN_MULT)) )
+   trans_color = sprites.get_at( (0, 0) )
+   sprites.set_colorkey( trans_color )
 
+   bgs = pygame.image.load( 'backgrounds.png' )
    bg = pygame.Surface( (231, 63) )
    bg.blit( bgs, (0, 0), (0, 0, 231, 63) )
-   bg = pygame.transform.scale( bg, (1173, 320) )
+   bg = pygame.transform.scale( bg, \
+      (SCREEN_MULT * (SCREEN_HEIGHT * bg.get_width() / bg.get_height()),
+      SCREEN_MULT * SCREEN_HEIGHT) )
 
    # Create player.
    player = Mobile( (5, 215) )
    player.set_sprites( \
-      sprites, [(28, 0), (29, 0)], SPRITE_KEY_RIGHT,
-      sprite_in_sz=23, sprite_margin=1 )
+      sprites, [(28, 0), (29, 0)], SPRITE_KEY_RIGHT, sprite_margin=1 )
    player.set_sprites( \
-      sprites, [(26, 0), (27, 0)], SPRITE_KEY_RIGHT_JUMP,
-      sprite_in_sz=23, sprite_margin=1 )
+      sprites, [(26, 0), (27, 0)], SPRITE_KEY_RIGHT_JUMP, sprite_margin=1 )
    player.set_accel_max( (6, 5) )
 
    # Setup player sprites.
@@ -271,8 +281,11 @@ def main():
       screen.blit( bg, (0, 0) )
 
       screen.blit( player.get_sprite(), \
-         (player.coords[X], player.coords[Y] - player.sprite_sz), \
-         (0, 0, SPRITE_SZ_PX, SPRITE_SZ_PX) )
+         (SCREEN_MULT * player.coords[X], \
+         SCREEN_MULT * (player.coords[Y] - SPRITE_SZ_PX)), \
+         (0, 0, \
+         SCREEN_MULT * SPRITE_SZ_PX, \
+         SCREEN_MULT * SPRITE_SZ_PX) )
 
       #pygame.draw.circle( screen, (255, 0, 0), dot_coords, radius )
       font = pygame.font.SysFont( 'Sans', 14, False, False )
@@ -290,11 +303,17 @@ def main():
             map_cell = MAP[y][x]
             if 0 > map_cell:
                continue
-            sprite_x = 1 + ((map_cell % 30) * sprites_sz)
-            sprite_y = 1 + ((map_cell / 30) * sprites_sz)
+            sprite_x = SCREEN_MULT * (SPRITESHEET_MARGIN_PX + \
+               SPRITE_BORDER_PX + ((map_cell % 30) * SPRITE_OUTER_SZ_PX))
+            sprite_y = SCREEN_MULT * (SPRITESHEET_MARGIN_PX + \
+               SPRITE_BORDER_PX + ((map_cell / 30) * SPRITE_OUTER_SZ_PX))
+
             screen.blit( sprites, \
-               (SPRITE_SZ_PX * x, SPRITE_SZ_PX * y), \
-               (sprite_x, sprite_y, sprites_sz, sprites_sz) )
+               (SCREEN_MULT * SPRITE_SZ_PX * x,
+               SCREEN_MULT * SPRITE_SZ_PX * y), \
+               (sprite_x, sprite_y, 
+                  SCREEN_MULT * SPRITE_SZ_PX,
+                  SCREEN_MULT * SPRITE_SZ_PX) )
 
       pygame.display.flip()
 
