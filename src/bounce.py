@@ -247,8 +247,21 @@ class Level:
 
       self.level_map = level_map
 
+   def extend_x( self ):
+      
+      for y in range( 0, len( self.level_map ) ):
+         last_x = len( self.level_map[y] ) - 1
+
+         if -1 == self.level_map[y][last_x]:
+            self.level_map[y].append( -1 )
+         else:
+            self.level_map[y].append( 123 )
+
    def get_draw_x( self, x ):
       return x - self.vwindow[X]
+
+   def get_width( self ):
+      return len( self.level_map[0] ) * SPRITE_SZ_PX
 
    def get_block_sprite_x( self, block_id ):
       return (SPRITESHEET_MARGIN_PX + \
@@ -342,6 +355,10 @@ def main():
       player.accel( key_accel, accel_mult=2 )
 
       level.set_vwindow_center( player.coords[X] )
+      while level.get_width() < level.vwindow[X] + SCREEN_WIDTH:
+         print level.get_width()
+         print level.vwindow
+         level.extend_x()
 
       screen.blit( bg, (SCREEN_MULT * level.get_draw_x( 0 ), 0) )
 
