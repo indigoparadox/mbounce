@@ -8,8 +8,6 @@ ACCEL_RIGHT = ( 1, 0)
 ACCEL_DOWN  = ( 0, 1)
 ACCEL_UP    = ( 0,-1)
 
-SPRITE_SIZE_PX = 23
-
 SCREEN_WIDTH = 640
 SCREEN_HEIGHT = 320
 
@@ -18,8 +16,24 @@ SPRITE_KEY_RIGHT = 1
 SPRITE_KEY_LEFT_JUMP = 2
 SPRITE_KEY_RIGHT_JUMP = 3
 
+SPRITE_SZ_PX = 32
+
 X = 0
 Y = 1
+
+#    1, 2, 3, 4, 5, 6, 7, 8, 9,10,11,12,13,14,15,16,17,18,19,20
+MAP = [
+   [-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1, 0],
+   [-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1, 0],
+   [-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1, 0],
+   [-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1, 0],
+   [-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1, 0],
+   [-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1, 0],
+   [-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1, 0],
+   [-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1, 0],
+   [-1,-1,-1,-1,-1,-1,-1,126,123,127,-1,-1,-1,-1,-1,-1,-1,-1,-1, 0],
+   [123,123,123,123,123,123,123,123,123,123,123,123,123,123,123,123,123,123,123,123]
+]
 
 class Mobile:
 
@@ -27,6 +41,7 @@ class Mobile:
    jump_decel_inc = 1
    jump_rate = -20
    accel_max = (3, 5)
+   sprite_sz = 32
 
    def __init__( self, coords ):
       self.sprites = [[], [], [], []]
@@ -66,17 +81,18 @@ class Mobile:
    def jump( self ):
       self.jump_factor = self.jump_rate
 
-   def update( self ):
-      if self.coords[Y] < self.get_floor():
+   def update_accel( self ):
+      floor = self.get_floor()
+
+      if self.coords[Y] < floor:
          # If we're above the floor, then fall (accel according to gravity).
          self.accel( ACCEL_DOWN )
-
-      elif self.coords[Y] + self.accel_factor[Y] + self.jump_factor >= \
-      self.get_floor():
-         # Set gravity to whatever it needs to be for us to "land" on the last
-         # tick.
-         self.accel_factor = \
-            (self.accel_factor[X], self.get_floor() - self.coords[Y])
+      elif self.coords[Y] > floor:
+         # Get back up above the floor!
+         self.jump_factor = 0
+         self.accel_factor = (self.accel_factor[X], 0)
+         self.coords = (self.coords[0], floor)
+         return
 
       # Apply gravity drag to jump up.
       if 0 > self.jump_factor:
@@ -88,6 +104,15 @@ class Mobile:
       elif 0 > self.accel_factor[X]:
          self.accel( ACCEL_RIGHT )
 
+      if self.coords[Y] + self.accel_factor[Y] + self.jump_factor >= \
+      floor:
+         # Set gravity to whatever it needs to be for us to "land" on the last
+         # tick.
+         self.jump_factor = 0
+         self.accel_factor = \
+            (self.accel_factor[X], floor - self.coords[Y])
+
+   def update_coords( self ):
       # Apply acceleration to coordinates.
       self.coords = \
          (self.coords[X] + self.accel_factor[X], \
@@ -123,7 +148,26 @@ class Mobile:
       return 0 != self.accel_factor[X]
 
    def get_floor( self ):
-      return SCREEN_HEIGHT
+      # Convert blocks to pixels.
+      if self.coords[1] >= 0:
+         hunt_block = (self.coords[0] / self.sprite_sz, \
+            (self.coords[1] / self.sprite_sz) - 1)
+      else:
+         hunt_block = (self.coords[0] / self.sprite_sz, 1)
+      #assert( hunt_block[1] > 0 and \
+      #   hunt_block[1] * self.sprite_sz < SCREEN_HEIGHT )
+
+      # Search for the floor in this column.
+      while hunt_block[1] < len( MAP ) - 1 and \
+      hunt_block[1] >= 0 and \
+      MAP[hunt_block[1]][hunt_block[0]] < 0:
+         hunt_block = (hunt_block[0], hunt_block[1] + 1)
+
+      floor = hunt_block[1] * self.sprite_sz
+      if floor < SCREEN_HEIGHT:
+         return floor
+      else:
+         return SCREEN_HEIGHT
 
    def get_sprite( self ):
       return self.sprites[self.facing][self.sprite_frame_seq]
@@ -132,15 +176,18 @@ class Mobile:
       self.accel_max = accel_max
 
    def set_sprites( self, sprites, walk_list, dir_in, \
-   colorkey=None, sprite_margin=0 ):
+   colorkey=None, sprite_in_sz=0, sprite_margin=0 ):
 
       # Cut out the sprites.
       for xy in walk_list:
-         sprite = pygame.Surface( (SPRITE_SIZE_PX, SPRITE_SIZE_PX) )
+         sprite = pygame.Surface( (sprite_in_sz, sprite_in_sz) )
          sprite.blit( sprites, (0, 0), (
-            sprite_margin + (SPRITE_SIZE_PX * xy[X]),
-            sprite_margin + (SPRITE_SIZE_PX * xy[Y]),
-            SPRITE_SIZE_PX, SPRITE_SIZE_PX) )
+            sprite_margin + (sprite_in_sz * xy[X]),
+            sprite_margin + (sprite_in_sz * xy[Y]),
+            sprite_in_sz, sprite_in_sz) )
+         if sprite_in_sz:
+            sprite = pygame.transform.scale( \
+               sprite, (self.sprite_sz, self.sprite_sz) )
          if colorkey:
             sprite.set_colorkey( colorkey )
          else:
@@ -150,18 +197,15 @@ class Mobile:
          self.sprites[dir_in].append( sprite )
 
          # Make inverted copies for opposite direction.
+         sprite_opposite = pygame.transform.flip( sprite, True, False )
          if SPRITE_KEY_LEFT == dir_in:
-            self.sprites[SPRITE_KEY_RIGHT].append( \
-               pygame.transform.flip( sprite, True, False ) )
+            self.sprites[SPRITE_KEY_RIGHT].append( sprite_opposite )
          elif SPRITE_KEY_RIGHT == dir_in:
-            self.sprites[SPRITE_KEY_LEFT].append( \
-               pygame.transform.flip( sprite, True, False ) )
+            self.sprites[SPRITE_KEY_LEFT].append( sprite_opposite )
          elif SPRITE_KEY_LEFT_JUMP == dir_in:
-            self.sprites[SPRITE_KEY_RIGHT_JUMP].append( \
-               pygame.transform.flip( sprite, True, False ) )
+            self.sprites[SPRITE_KEY_RIGHT_JUMP].append( sprite_opposite )
          elif SPRITE_KEY_RIGHT_JUMP == dir_in:
-            self.sprites[SPRITE_KEY_LEFT_JUMP].append( \
-               pygame.transform.flip( sprite, True, False ) )
+            self.sprites[SPRITE_KEY_LEFT_JUMP].append( sprite_opposite )
 
 def main():
 
@@ -173,19 +217,21 @@ def main():
    clock = pygame.time.Clock()
 
    sprites = pygame.image.load( 'spritesheet.png' )
+   sprites_sz = 23
    bgs = pygame.image.load( 'backgrounds.png' )
 
    bg = pygame.Surface( (231, 63) )
    bg.blit( bgs, (0, 0), (0, 0, 231, 63) )
    bg = pygame.transform.scale( bg, (1173, 320) )
 
-   player = Mobile( (5, 315) )
+   # Create player.
+   player = Mobile( (5, 215) )
    player.set_sprites( \
       sprites, [(28, 0), (29, 0)], SPRITE_KEY_RIGHT,
-      sprite_margin=1 )
+      sprite_in_sz=23, sprite_margin=1 )
    player.set_sprites( \
       sprites, [(26, 0), (27, 0)], SPRITE_KEY_RIGHT_JUMP,
-      sprite_margin=1 )
+      sprite_in_sz=23, sprite_margin=1 )
    player.set_accel_max( (6, 5) )
 
    # Setup player sprites.
@@ -218,14 +264,15 @@ def main():
       player.accel( key_accel, accel_mult=2 )
 
       # Draw the current state of things.
-      player.update()
+      player.update_accel()
+      player.update_coords()
       player.animate()
       #screen.fill( (0, 0, 0) )
       screen.blit( bg, (0, 0) )
 
       screen.blit( player.get_sprite(), \
-         (player.coords[X], player.coords[Y] - SPRITE_SIZE_PX), \
-         (0, 0, SPRITE_SIZE_PX, SPRITE_SIZE_PX) )
+         (player.coords[X], player.coords[Y] - player.sprite_sz), \
+         (0, 0, SPRITE_SZ_PX, SPRITE_SZ_PX) )
 
       #pygame.draw.circle( screen, (255, 0, 0), dot_coords, radius )
       font = pygame.font.SysFont( 'Sans', 14, False, False )
@@ -238,10 +285,20 @@ def main():
             player.coords[X], player.coords[Y] ), True, (255, 0, 0) )
       screen.blit( stats, [10, 10] )
 
+      for y in range( 0, len( MAP ) ):
+         for x in range( 0, len( MAP[y] ) ):
+            map_cell = MAP[y][x]
+            if 0 > map_cell:
+               continue
+            sprite_x = 1 + ((map_cell % 30) * sprites_sz)
+            sprite_y = 1 + ((map_cell / 30) * sprites_sz)
+            screen.blit( sprites, \
+               (SPRITE_SZ_PX * x, SPRITE_SZ_PX * y), \
+               (sprite_x, sprite_y, sprites_sz, sprites_sz) )
+
       pygame.display.flip()
 
       clock.tick( 60 )
-
 
 if '__main__' == __name__:
    main()
