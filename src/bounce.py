@@ -98,6 +98,7 @@ class Mobile:
 
       self.behave_timer = 0
 
+      # Execute this mobile's AI, if applicable.
       if BEHAVIOR_RANDOM == self.behavior:
          behave = random.randint( 0, 1000 )
          if behave < 450:
@@ -108,6 +109,9 @@ class Mobile:
             self.jump_factor = -20
 
    def update_accel( self ):
+      if self.coords[Y] / SPRITE_SZ_PX >= len( MAP[0] ) - 1:
+         self.accel_factor[X] = -2
+
       floor = self.get_floor()
 
       if self.coords[Y] < floor:
@@ -232,15 +236,44 @@ class Mobile:
          elif SPRITE_KEY_RIGHT_JUMP == dir_in:
             self.sprites[SPRITE_KEY_LEFT_JUMP].append( sprite_opposite )
 
+class Level:
+
+   def __init__( self, level_map ):
+      
+      self.vwindow = (0, 0, SCREEN_WIDTH, SCREEN_HEIGHT)
+      self.boundaries = (0, 0, \
+         len( level_map[0] ) * SPRITE_SZ_PX, \
+         len( level_map ) * SPRITE_SZ_PX)
+
+      self.level_map = level_map
+
+   def get_draw_x( self, x ):
+      return x - self.vwindow[X]
+
+   def get_block_sprite_x( self, block_id ):
+      return (SPRITESHEET_MARGIN_PX + \
+         SPRITE_BORDER_PX + ((block_id % 30) * SPRITE_OUTER_SZ_PX))
+
+   def get_block_sprite_y( self, block_id ):
+      return (SPRITESHEET_MARGIN_PX + \
+         SPRITE_BORDER_PX + ((block_id / 30) * SPRITE_OUTER_SZ_PX))
+
+   def set_vwindow_center( self, x ):
+      self.vwindow = (x - (SCREEN_WIDTH / 2), SCREEN_HEIGHT / 2, \
+         SCREEN_WIDTH, SCREEN_HEIGHT)
+
 def main():
 
    key_accel = (0, 0)
+   left_edge = 0
 
    pygame.init()
    screen = pygame.display.set_mode( \
       (SCREEN_MULT * SCREEN_WIDTH, SCREEN_MULT * SCREEN_HEIGHT) )
    running = True
    clock = pygame.time.Clock()
+
+   level = Level( MAP )
 
    # Load the spritesheet.
    sprites = pygame.image.load( 'spritesheet.png' )
@@ -308,26 +341,27 @@ def main():
       # Apply input acceleration based on state grabbed above.
       player.accel( key_accel, accel_mult=2 )
 
-      # Draw the background.
-      screen.blit( bg, (0, 0) )
+      level.set_vwindow_center( player.coords[X] )
+
+      screen.blit( bg, (SCREEN_MULT * level.get_draw_x( 0 ), 0) )
 
       # Draw map foreground objects.
-      for y in range( 0, len( MAP ) ):
-         for x in range( 0, len( MAP[y] ) ):
+      for y in range( 0, len( level.level_map ) ):
+         for x in range( 0, len( level.level_map[y] ) ):
             map_cell = MAP[y][x]
             if 0 > map_cell:
                continue
-            sprite_x = SCREEN_MULT * (SPRITESHEET_MARGIN_PX + \
-               SPRITE_BORDER_PX + ((map_cell % 30) * SPRITE_OUTER_SZ_PX))
-            sprite_y = SCREEN_MULT * (SPRITESHEET_MARGIN_PX + \
-               SPRITE_BORDER_PX + ((map_cell / 30) * SPRITE_OUTER_SZ_PX))
+
+            screen_draw_x = level.get_draw_x( SPRITE_SZ_PX * x )
+            screen_draw_y = SPRITE_SZ_PX * y
 
             screen.blit( sprites, \
-               (SCREEN_MULT * SPRITE_SZ_PX * x,
-               SCREEN_MULT * SPRITE_SZ_PX * y), \
-               (sprite_x, sprite_y, 
-                  SCREEN_MULT * SPRITE_SZ_PX,
-                  SCREEN_MULT * SPRITE_SZ_PX) )
+               (SCREEN_MULT * screen_draw_x,
+               SCREEN_MULT * screen_draw_y), \
+               (SCREEN_MULT * level.get_block_sprite_x( map_cell ), \
+               SCREEN_MULT * level.get_block_sprite_y( map_cell ), \
+               SCREEN_MULT * SPRITE_SZ_PX, \
+               SCREEN_MULT * SPRITE_SZ_PX) )
 
       # Update and draw the mobiles.
       for mob in mobiles:
@@ -336,8 +370,13 @@ def main():
          mob.update_coords()
          mob.animate()
 
+         # Skip drawing things off-screen.
+         mob_draw_x = level.get_draw_x( mob.coords[X] )
+         if 0 > mob_draw_x or SCREEN_WIDTH <= mob_draw_x:
+            continue
+
          screen.blit( mob.get_sprite(), \
-            (SCREEN_MULT * mob.coords[X], \
+            (SCREEN_MULT * mob_draw_x, \
             SCREEN_MULT * (mob.coords[Y] - SPRITE_SZ_PX)), \
             (0, 0, \
             SCREEN_MULT * SPRITE_SZ_PX, \
