@@ -23,23 +23,20 @@ Y = 1
 
 class Mobile:
 
-   sprite_frame_seq = 0
-   sprite_key = SPRITE_KEY_LEFT
    sprite_frames_max = 30
-   jump_accel = 0
-   jump_accel_minor = 0
-   jump_accel_minor_max = 0
-   gravity_accel_minor = 0
-   gravity_accel_minor_max = 10
+   jump_decel_inc = 1
    jump_rate = -20
-   coords = (5, 315)
    accel_max = (3, 5)
-   accel_factor = (0, 0)
-   sprite_frames = 0
-   facing = SPRITE_KEY_LEFT
 
-   def __init__( self ):
+   def __init__( self, coords ):
       self.sprites = [[], [], [], []]
+      self.accel_factor = (0, 0)
+      self.facing = SPRITE_KEY_LEFT
+      self.sprite_frames = 0
+      self.sprite_key = SPRITE_KEY_LEFT
+      self.jump_factor = 0
+      self.sprite_frame_seq = 0
+      self.coords = coords
 
    def accel( self, accel_dir, accel_mult=1 ) :
       i = 0
@@ -67,17 +64,14 @@ class Mobile:
          i += 1
 
    def jump( self ):
-      self.jump_accel = self.jump_rate
+      self.jump_factor = self.jump_rate
 
    def update( self ):
       if self.coords[Y] < self.get_floor():
          # If we're above the floor, then fall (accel according to gravity).
-         self.gravity_accel_minor += 1
-         if self.gravity_accel_minor_max <= self.gravity_accel_minor:
-            self.accel( ACCEL_DOWN )
-            self.gravity_accel_minor = 0
+         self.accel( ACCEL_DOWN )
 
-      elif self.coords[Y] + self.accel_factor[Y] + self.jump_accel >= \
+      elif self.coords[Y] + self.accel_factor[Y] + self.jump_factor >= \
       self.get_floor():
          # Set gravity to whatever it needs to be for us to "land" on the last
          # tick.
@@ -85,11 +79,8 @@ class Mobile:
             (self.accel_factor[X], self.get_floor() - self.coords[Y])
 
       # Apply gravity drag to jump up.
-      if 0 > self.jump_accel:
-         self.jump_accel_minor += 1
-         if self.jump_accel_minor_max <= self.jump_accel_minor:
-            self.jump_accel += 1
-            self.jump_accel_minor = 0
+      if 0 > self.jump_factor:
+         self.jump_factor += self.jump_decel_inc
 
       # Gradually slow down right/left movement.
       if 0 < self.accel_factor[X]:
@@ -100,7 +91,7 @@ class Mobile:
       # Apply acceleration to coordinates.
       self.coords = \
          (self.coords[X] + self.accel_factor[X], \
-         self.coords[Y] + self.accel_factor[Y] + self.jump_accel)
+         self.coords[Y] + self.accel_factor[Y] + self.jump_factor)
 
    def animate( self ):
       if not self.is_moving():
@@ -126,7 +117,7 @@ class Mobile:
          self.sprite_frames = 0
 
    def is_jumping_or_falling( self ):
-      return 0 != self.jump_accel or 0 != self.accel_factor[Y]
+      return 0 != self.jump_factor or 0 != self.accel_factor[Y]
 
    def is_moving( self ):
       return 0 != self.accel_factor[X]
@@ -136,6 +127,9 @@ class Mobile:
 
    def get_sprite( self ):
       return self.sprites[self.facing][self.sprite_frame_seq]
+
+   def set_accel_max( self, accel_max ):
+      self.accel_max = accel_max
 
    def set_sprites( self, sprites, walk_list, dir_in, sprite_margin=0 ):
 
@@ -174,11 +168,12 @@ def main():
    sprites = pygame.image.load( 'spritesheet.png' )
    bgs = pygame.image.load( 'backgrounds.png' )
 
-   player = Mobile()
+   player = Mobile( (5, 315) )
    player.set_sprites( \
       sprites, [(28, 0), (29, 0)], SPRITE_KEY_RIGHT, sprite_margin=1 )
    player.set_sprites( \
       sprites, [(26, 0), (27, 0)], SPRITE_KEY_RIGHT_JUMP, sprite_margin=1 )
+   player.set_accel_max( (6, 5) )
 
    # Setup player sprites.
 
@@ -225,7 +220,7 @@ def main():
             '-' if key_accel == ACCEL_LEFT else
                '+' if key_accel == ACCEL_RIGHT else '',
             player.accel_factor[X], player.accel_factor[Y],
-            player.sprite_frame_seq, player.jump_accel, \
+            player.sprite_frame_seq, player.jump_factor, \
             player.coords[X], player.coords[Y] ), True, (255, 0, 0) )
       screen.blit( stats, [10, 10] )
 
