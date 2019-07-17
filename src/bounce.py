@@ -55,9 +55,8 @@ def main():
    sprite_key = SPRITE_KEY_LEFT
    sprite_frames_max = 30
    key_accel = (0, 0)
-   jump_max = 90
    jump_accel = 0
-   jump_rate = -8
+   jump_rate = -20
 
    pygame.init()
    screen = pygame.display.set_mode( (screen_width, screen_height) )
@@ -92,10 +91,12 @@ def main():
                key_accel = (ACCEL_RIGHT[0], key_accel[1])
             elif pygame.K_LEFT == event.key:
                key_accel = (ACCEL_LEFT[0], key_accel[1])
-            elif pygame.K_SPACE == event.key and 0 >= jump_accel:
+            elif pygame.K_SPACE == event.key and \
+            0 == jump_accel and \
+            0 == accel_factor[1]:
                jump_accel = jump_rate
          elif pygame.KEYUP == event.type:
-            if 0 == jump_accel and \
+            if 0 == jump_accel and 0 == accel_factor[1] and \
             (pygame.K_LEFT == event.key or pygame.K_RIGHT == event.key):
                # If we're not jumping, just stop.
                key_accel = (0, 0)
