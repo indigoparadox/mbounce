@@ -2,6 +2,7 @@
 
 import pygame
 import pdb
+import random
 
 ACCEL_LEFT  = (-1, 0)
 ACCEL_RIGHT = ( 1, 0)
@@ -25,6 +26,9 @@ SCREEN_HEIGHT = 10 * SPRITE_SZ_PX
 X = 0
 Y = 1
 
+BEHAVIOR_NEUTRAL = 0
+BEHAVIOR_RANDOM = 1
+
 #    1, 2, 3, 4, 5, 6, 7, 8, 9,10,11,12,13,14,15,16,17,18,19,20
 MAP = [
    [ -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1],
@@ -45,6 +49,7 @@ class Mobile:
    jump_decel_inc = 1
    jump_rate = -20
    accel_max = (3, 5)
+   behave_timer_max = 10
 
    def __init__( self, coords ):
       self.sprites = [[], [], [], []]
@@ -55,6 +60,8 @@ class Mobile:
       self.jump_factor = 0
       self.sprite_frame_seq = 0
       self.coords = coords
+      self.behavior = BEHAVIOR_NEUTRAL
+      self.behave_timer = 0
 
    def accel( self, accel_dir, accel_mult=1 ) :
       i = 0
@@ -83,6 +90,22 @@ class Mobile:
 
    def jump( self ):
       self.jump_factor = self.jump_rate
+
+   def do_behavior( self ):
+      self.behave_timer += 1
+      if self.behave_timer < self.behave_timer_max:
+         return
+
+      self.behave_timer = 0
+
+      if BEHAVIOR_RANDOM == self.behavior:
+         behave = random.randint( 0, 1000 )
+         if behave < 450:
+            self.accel( ACCEL_RIGHT, accel_mult=8 )
+         elif behave < 900:
+            self.accel( ACCEL_LEFT, accel_mult=8 )
+         elif self.jump_factor == 0 and self.accel_factor[Y] == 0:
+            self.jump_factor = -20
 
    def update_accel( self ):
       floor = self.get_floor()
@@ -157,8 +180,6 @@ class Mobile:
             (self.coords[1] / SPRITE_SZ_PX) - 1)
       else:
          hunt_block = (self.coords[0] / SPRITE_SZ_PX, 1)
-      #assert( hunt_block[1] > 0 and \
-      #   hunt_block[1] * SPRITE_SZ_PX < SCREEN_HEIGHT )
 
       # Search for the floor in this column.
       while hunt_block[1] < len( MAP ) - 1 and \
@@ -166,6 +187,7 @@ class Mobile:
       MAP[hunt_block[1]][hunt_block[0]] < 0:
          hunt_block = (hunt_block[0], hunt_block[1] + 1)
 
+      # Don't fall through the screen bottom.
       floor = hunt_block[1] * SPRITE_SZ_PX
       if floor < (SCREEN_MULT * SCREEN_HEIGHT):
          return floor
@@ -220,6 +242,7 @@ def main():
    running = True
    clock = pygame.time.Clock()
 
+   # Load the spritesheet.
    sprites = pygame.image.load( 'spritesheet.png' )
    if 1 < SCREEN_MULT:
       sprites = pygame.transform.scale( \
@@ -229,6 +252,7 @@ def main():
    trans_color = sprites.get_at( (0, 0) )
    sprites.set_colorkey( trans_color )
 
+   # Load the background.
    bgs = pygame.image.load( 'backgrounds.png' )
    bg = pygame.Surface( (231, 63) )
    bg.blit( bgs, (0, 0), (0, 0, 231, 63) )
@@ -238,13 +262,26 @@ def main():
 
    # Create player.
    player = Mobile( (5, 215) )
+
+   # Setup player sprites.
    player.set_sprites( \
       sprites, [(28, 0), (29, 0)], SPRITE_KEY_RIGHT, sprite_margin=1 )
    player.set_sprites( \
       sprites, [(26, 0), (27, 0)], SPRITE_KEY_RIGHT_JUMP, sprite_margin=1 )
    player.set_accel_max( (6, 5) )
 
-   # Setup player sprites.
+   # Create mobiles.
+   mobiles = []
+   mobiles.append( player )
+
+   mob = Mobile( (random.randint( 30, 160 ), 200) )
+   mob.set_sprites( \
+      sprites, [(28, 4), (29, 4)], SPRITE_KEY_RIGHT, sprite_margin=1 )
+   mob.set_sprites( \
+      sprites, [(26, 4), (27, 4)], SPRITE_KEY_RIGHT_JUMP, sprite_margin=1 )
+   mob.set_accel_max( (6, 4) )
+   mob.behavior = BEHAVIOR_RANDOM
+   mobiles.append( mob )
 
    while running:
 
@@ -269,35 +306,12 @@ def main():
                key_accel = (0, 0)
 
       # Apply input acceleration based on state grabbed above.
-      #if 0 >= player.accel_factor[X]:
-      #   pdb.set_trace()
       player.accel( key_accel, accel_mult=2 )
 
-      # Draw the current state of things.
-      player.update_accel()
-      player.update_coords()
-      player.animate()
-      #screen.fill( (0, 0, 0) )
+      # Draw the background.
       screen.blit( bg, (0, 0) )
 
-      screen.blit( player.get_sprite(), \
-         (SCREEN_MULT * player.coords[X], \
-         SCREEN_MULT * (player.coords[Y] - SPRITE_SZ_PX)), \
-         (0, 0, \
-         SCREEN_MULT * SPRITE_SZ_PX, \
-         SCREEN_MULT * SPRITE_SZ_PX) )
-
-      #pygame.draw.circle( screen, (255, 0, 0), dot_coords, radius )
-      font = pygame.font.SysFont( 'Sans', 14, False, False )
-      stats = font.render( \
-         '{}a_x: {}, a_y: {}, f: {}, j: {}, x: {}, y: {}'.format( \
-            '-' if key_accel == ACCEL_LEFT else
-               '+' if key_accel == ACCEL_RIGHT else '',
-            player.accel_factor[X], player.accel_factor[Y],
-            player.sprite_frame_seq, player.jump_factor, \
-            player.coords[X], player.coords[Y] ), True, (255, 0, 0) )
-      screen.blit( stats, [10, 10] )
-
+      # Draw map foreground objects.
       for y in range( 0, len( MAP ) ):
          for x in range( 0, len( MAP[y] ) ):
             map_cell = MAP[y][x]
@@ -314,6 +328,31 @@ def main():
                (sprite_x, sprite_y, 
                   SCREEN_MULT * SPRITE_SZ_PX,
                   SCREEN_MULT * SPRITE_SZ_PX) )
+
+      # Update and draw the mobiles.
+      for mob in mobiles:
+         mob.do_behavior()
+         mob.update_accel()
+         mob.update_coords()
+         mob.animate()
+
+         screen.blit( mob.get_sprite(), \
+            (SCREEN_MULT * mob.coords[X], \
+            SCREEN_MULT * (mob.coords[Y] - SPRITE_SZ_PX)), \
+            (0, 0, \
+            SCREEN_MULT * SPRITE_SZ_PX, \
+            SCREEN_MULT * SPRITE_SZ_PX) )
+
+      # Show some useful system info on-screen.
+      font = pygame.font.SysFont( 'Sans', 14, False, False )
+      stats = font.render( \
+         '{}a_x: {}, a_y: {}, f: {}, j: {}, x: {}, y: {}'.format( \
+            '-' if key_accel == ACCEL_LEFT else
+               '+' if key_accel == ACCEL_RIGHT else '',
+            player.accel_factor[X], player.accel_factor[Y],
+            player.sprite_frame_seq, player.jump_factor, \
+            player.coords[X], player.coords[Y] ), True, (255, 0, 0) )
+      screen.blit( stats, [10, 10] )
 
       pygame.display.flip()
 
