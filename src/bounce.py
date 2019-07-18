@@ -193,6 +193,12 @@ class Mobile:
             self.sprite_frame_seq = 0
          self.sprite_frames = 0
 
+   def is_on_screen( self, screen ):
+      if self.sprite_sz_px * -1 > self.coords[X] or \
+      screen.size[X] + self.sprite_sz_px <= self.coords[X]:
+         return False
+      return True
+
    def is_jumping_or_falling( self ):
       return 0 != self.jump_factor or 0 != self.accel_factor[Y]
 
@@ -404,7 +410,12 @@ class Screen:
       self.multiplier = multiplier
       self.size = size
 
-   def blit( self, img, dest=(0, 0), dimensions=None ):
+   def blit( self, img, dest=(0, 0), dimensions=None, offscreen=0 ):
+
+      # Skip drawing off-screen stuff.
+      if offscreen * -1 > dest[X] or \
+      self.size[X] + offscreen <= dest[X]:
+         return
 
       if dimensions:
          self.screen.blit( \
@@ -502,7 +513,7 @@ def main():
 
       bg_offset_x = -1 * \
          (player.coords[X] * SCREEN_WIDTH / level.get_max_width())
-      screen.blit( bg, (bg_offset_x, 0) )
+      screen.blit( bg, (bg_offset_x, 0), offscreen=bg.get_width() )
 
       # Draw map foreground objects.
       for y in range( 0, len( level.level_map ) ):
@@ -519,20 +530,20 @@ def main():
                (level.get_block_sprite_x( map_cell ), \
                level.get_block_sprite_y( map_cell ), \
                level.block_sz_px, \
-               level.block_sz_px) )
+               level.block_sz_px),
+               offscreen = level.block_sz_px )
 
       # Update and draw the mobiles.
       for mob in mobiles:
+         if not mob.is_on_screen( screen ):
+            continue
+
          mob.do_behavior()
          mob.update_accel()
          mob.update_coords( level )
          mob.animate()
 
-         # Skip drawing things off-screen.
          mob_draw_x = level.get_draw_x( mob.coords[X] )
-         if 0 > mob_draw_x or SCREEN_WIDTH <= mob_draw_x:
-            continue
-
          screen.blit( mob.get_sprite(), \
             (mob_draw_x, (mob.coords[Y] - mob.sprite_sz_px)), \
             (0, 0, mob.sprite_sz_px, mob.sprite_sz_px) )
