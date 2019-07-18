@@ -23,6 +23,14 @@ SPRITE_OUTER_SZ_PX = (2 * SPRITE_BORDER_PX) + SPRITE_SZ_PX
 SCREEN_WIDTH = 16 * SPRITE_SZ_PX
 SCREEN_HEIGHT = 10 * SPRITE_SZ_PX
 
+BLOCK_EMPTY = -1
+BLOCK_GRASS = 123
+BLOCK_GRASS_UP = 126
+BLOCK_GRASS_UP_FILL = 156
+BLOCK_GRASS_DOWN = 127
+BLOCK_GRASS_DOWN_FILL = 157
+BLOCK_DIRT_FILL = 152
+
 X = 0
 Y = 1
 
@@ -31,16 +39,16 @@ BEHAVIOR_RANDOM = 1
 
 #    1, 2, 3, 4, 5, 6, 7, 8, 9,10,11,12,13,14,15,16,17,18,19,20
 MAP = [
-   [ -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1],
-   [ -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1],
-   [ -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1],
-   [ -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1],
-   [ -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1],
-   [ -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1],
-   [ -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1],
-   [ -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1],
-   [ -1, -1, -1, -1, -1, -1, -1,126,123,127, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1],
-   [123,123,123,123,123,123,123,156,152,157,123,123,123,123,123,123,123,123,123,123]
+   [ -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1],
+   [ -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1],
+   [ -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1],
+   [ -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1],
+   [ -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1],
+   [ -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1],
+   [ -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1],
+   [ -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1],
+   [ -1, -1, -1, -1, -1, -1, -1,126,123,127, -1, -1, -1, -1, -1, -1, -1, -1],
+   [123,123,123,123,123,123,123,156,152,157,123,123,123,123,123,123,123,123]
 ]
 
 class Mobile:
@@ -250,12 +258,86 @@ class Level:
    def extend_x( self ):
       
       for y in range( 0, len( self.level_map ) ):
+         # Figure out useful coords for back and to the left:
+         #
+         # ...xo
+         # ...y.
          last_x = len( self.level_map[y] ) - 1
+         x = len( self.level_map[y] )
+         if y + 1 < len( self.level_map ) - 1:
+            next_y = y + 1
+         else:
+            next_y = -1
+         last_y = y - 1
+
+         if 0 < last_y and \
+         BLOCK_GRASS_UP == self.level_map[last_y][x]:
+            self.level_map[y].append( BLOCK_GRASS_UP_FILL )
+            continue
+         elif 0 < last_y and \
+         BLOCK_GRASS_DOWN == self.level_map[last_y][x]:
+            self.level_map[y].append( BLOCK_GRASS_DOWN_FILL )
+            continue
 
          if -1 == self.level_map[y][last_x]:
-            self.level_map[y].append( -1 )
+            # Last block in this row was empty.
+            # Level out or keep sloping up.
+
+            if BLOCK_GRASS == self.level_map[next_y][last_x]:
+               # Last block in next row has grass, so flip a coin for a slope.
+               if random.randint( 1, 2 ) > 1:
+                  self.level_map[y].append( BLOCK_GRASS_UP )
+               else:
+                  self.level_map[y].append( BLOCK_EMPTY )
+            elif 0 < last_y and \
+            BLOCK_GRASS_DOWN == self.level_map[last_y][last_x]:
+               # Last block in the last row was a down slope.
+               # Flop a coin to see if it keeps going down or levels out.
+               if random.randint( 1, 2 ) > 1:
+                  self.level_map[y].append( BLOCK_GRASS_DOWN )
+               else:
+                  self.level_map[y].append( BLOCK_GRASS )
+            else:
+               self.level_map[y].append( BLOCK_EMPTY )
+
+         elif BLOCK_GRASS_DOWN_FILL == self.level_map[y][last_x]:
+            # Last block in this row was a down fill.
+            # Level out or keep sloping down.
+
+            if random.randint( 1, 2 ) > 1 and 0 < next_y:
+               self.level_map[y].append( BLOCK_GRASS_DOWN )
+            else:
+               self.level_map[y].append( BLOCK_GRASS )
+
+
+         elif BLOCK_DIRT_FILL == self.level_map[y][last_x] or \
+         BLOCK_GRASS_UP_FILL == self.level_map[y][last_x]:
+            #if BLOCK_GRASS_UP == self.level_map[last_y][last_x]:
+            #   self.level_map[y].append( BLOCK_GRASS_UP_FILL )
+            #elif BLOCK_GRASS_DOWN == self.level_map[last_y][last_x]:
+            #   self.level_map[y].append( BLOCK_GRASS_DOWN_FILL )
+            #else:
+            self.level_map[y].append( BLOCK_DIRT_FILL )
+
+         elif BLOCK_GRASS == self.level_map[y][last_x] or \
+         BLOCK_GRASS_UP == self.level_map[y][last_x]:
+            # Last block in this row was grass level or up.
+            if BLOCK_EMPTY != self.level_map[last_y][last_x]:
+               # Put dirt under whatever's on top of us for now.
+               self.level_map[y].append( BLOCK_DIRT_FILL )
+            elif random.randint( 1, 2 ) > 1 and 0 < next_y:
+               self.level_map[y].append( BLOCK_GRASS_DOWN )
+            else:
+               self.level_map[y].append( BLOCK_GRASS )
+
          else:
-            self.level_map[y].append( 123 )
+            self.level_map[y].append( BLOCK_EMPTY )
+
+         #   if 0 < last_y and  self.level_map[last_y][last_x]:
+         #   self.level_map[y].append( -1 )
+         #   if 123 self.level_map[y][last_x]:
+         #else:
+         #   self.level_map[y].append( 123 )
 
    def get_draw_x( self, x ):
       return x - self.vwindow[X]
