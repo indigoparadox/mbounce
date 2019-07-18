@@ -37,7 +37,7 @@ Y = 1
 BEHAVIOR_NEUTRAL = 0
 BEHAVIOR_RANDOM = 1
 
-#    1, 2, 3, 4, 5, 6, 7, 8, 9,10,11,12,13,14,15,16,17,18,19,20
+#     1,  2,  3,  4,  5,  6,  7,  8,  9, 10, 11, 12, 13, 14, 15, 16, 17, 18
 MAP = [
    [ -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1],
    [ -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1],
@@ -150,11 +150,24 @@ class Mobile:
          self.accel_factor = \
             (self.accel_factor[X], floor - self.coords[Y])
 
-   def update_coords( self ):
+   def update_coords( self, level ):
+      x = self.coords[X] + self.accel_factor[X]
+      y = self.coords[Y] + self.accel_factor[Y] + self.jump_factor
+
+      # Don't overflow off the far left or right of the level.
+      if x < 0:
+         x = 0
+      elif x + SPRITE_SZ_PX > level.get_max_width():
+         x = level.get_max_width() - SPRITE_SZ_PX
+
+      # Don't overflow off the top or bottom of the level.
+      if y < SPRITE_SZ_PX:
+         y = SPRITE_SZ_PX
+      elif y > level.get_height():
+         y = level.get_height()
+
       # Apply acceleration to coordinates.
-      self.coords = \
-         (self.coords[X] + self.accel_factor[X], \
-         self.coords[Y] + self.accel_factor[Y] + self.jump_factor)
+      self.coords = (x, y)
 
    def animate( self ):
       if not self.is_moving():
@@ -354,6 +367,9 @@ class Level:
    def get_max_width( self ):
       return self.max_blocks_x * SPRITE_SZ_PX
 
+   def get_height( self ):
+      return SCREEN_HEIGHT
+
    def get_block_sprite_x( self, block_id ):
       return (SPRITESHEET_MARGIN_PX + \
          SPRITE_BORDER_PX + ((block_id % 30) * SPRITE_OUTER_SZ_PX))
@@ -363,7 +379,15 @@ class Level:
          SPRITE_BORDER_PX + ((block_id / 30) * SPRITE_OUTER_SZ_PX))
 
    def set_vwindow_center( self, x ):
-      self.vwindow = (x - (SCREEN_WIDTH / 2), SCREEN_HEIGHT / 2, \
+      left_x = x - (SCREEN_HEIGHT / 2)
+
+      # Don't overflow off the far left or right of the level.
+      if 0 >= left_x:
+         left_x = 0
+      if left_x + SCREEN_WIDTH > self.get_max_width():
+         left_x = self.get_max_width() - SCREEN_WIDTH
+
+      self.vwindow = (left_x, SCREEN_HEIGHT / 2, \
          SCREEN_WIDTH, SCREEN_HEIGHT)
 
 def main():
@@ -476,7 +500,7 @@ def main():
       for mob in mobiles:
          mob.do_behavior()
          mob.update_accel()
-         mob.update_coords()
+         mob.update_coords( level )
          mob.animate()
 
          # Skip drawing things off-screen.
