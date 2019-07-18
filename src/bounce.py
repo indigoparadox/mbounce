@@ -22,6 +22,9 @@ SPRITE_ID_WHITE_GUY_JUMP_2=(27, 4)
 SPRITE_ID_GREEN_SLIME_WALK_1=(20, 8)
 SPRITE_ID_GREEN_SLIME_WALK_2=(21, 8)
 
+SPRITE_ID_BLUE_FLAG_1=(12, 10)
+SPRITE_ID_BLUE_FLAG_2=(12, 11)
+
 SCREEN_MULT = 2
 SPRITESHEET_MARGIN_PX = 1
 SPRITE_SZ_PX = 21
@@ -68,6 +71,7 @@ class Mobile:
    jump_rate = -20
    accel_max = (3, 5)
    behave_timer_max = 10
+   animate_on_stand = False
 
    def __init__( self, coords ):
       self.sprites = [[], [], [], []]
@@ -187,7 +191,7 @@ class Mobile:
       self.coords = (x, y)
 
    def animate( self, level ):
-      if not self.is_moving():
+      if not self.animate_on_stand and not self.is_moving():
          return
 
       if 0 < self.accel_factor[X]:
@@ -236,7 +240,7 @@ class Mobile:
          hunt_block = (hunt_block[X], hunt_block[Y] + 1)
 
       # Don't fall through the screen bottom.
-      floor = hunt_block[Y] * self.sprite_sz_px
+      floor = hunt_block[Y] * level.block_sz_px
       if floor < level.get_height():
          return floor
       else:
@@ -249,26 +253,93 @@ class Mobile:
       self.accel_max = accel_max
 
    def set_sprites( self, sprites, walk_list, dir_in, \
-   colorkey=None, sprite_margin=0, sprite_sz_px=SPRITE_SZ_PX ):
+   colorkey=None, sprite_margin=0, sprite_sz_px=SPRITE_SZ_PX, \
+   rpt_region=None, rpt_dimensions=None ):
 
       self.sprite_sz_px = sprite_sz_px
+      sprites_g1 = []
 
       # Cut out the sprites.
       for xy in walk_list:
          sprite = pygame.Surface( \
-            (SCREEN_MULT * self.sprite_sz_px, SCREEN_MULT * self.sprite_sz_px) )
+            (SCREEN_MULT * self.sprite_sz_px, \
+            SCREEN_MULT * self.sprite_sz_px) )
          sprite.blit( sprites, (0, 0), (
             SCREEN_MULT * (SPRITESHEET_MARGIN_PX + SPRITE_BORDER_PX + \
                (SPRITE_OUTER_SZ_PX * xy[X])),
             SCREEN_MULT * (SPRITESHEET_MARGIN_PX + SPRITE_BORDER_PX + \
                (SPRITE_OUTER_SZ_PX * xy[Y])),
             SCREEN_MULT * self.sprite_sz_px, SCREEN_MULT * self.sprite_sz_px) )
+         sprites_g1.append( sprite )
+
+      if rpt_region and rpt_dimensions:
+         # Sprites are fundamentally square, so just make it big enough to
+         # hold the repeated part.
+         if 0 < rpt_dimensions[X]:
+            self.sprite_sz_px += (rpt_dimensions[X] * 2)
+         elif 0 > rpt_dimensions[X]:
+            self.sprite_sz_px -= (rpt_dimensions[X] * 2)
+         elif 0 < rpt_dimensions[Y]:
+            self.sprite_sz_px += (rpt_dimensions[Y] * 2)
+         elif 0 > rpt_dimensions[Y]:
+            self.sprite_sz_px -= (rpt_dimensions[Y] * 2)
+
+      for sprite_s2 in sprites_g1:
+         if rpt_region and rpt_dimensions:
+            sprite = pygame.Surface( \
+               (SCREEN_MULT * self.sprite_sz_px, \
+               SCREEN_MULT * self.sprite_sz_px) )
+
+            if 0 < rpt_dimensions[X]:
+               # Blit the main sprite.
+               sprite.blit( sprite_s2, \
+                  (SCREEN_MULT * rpt_dimensions[X], \
+                   SCREEN_MULT * rpt_dimensions[X]),
+                  (0, 0, self.sprite_sz_px * SCREEN_MULT, \
+                   self.sprite_sz_px * SCREEN_MULT) )
+
+               # And blit the repeated part.
+               sprite.blit( sprite_s2, \
+                  (self.sprite_sz_px + rpt_dimensions[X], rpt_dimensions[X]), \
+                  (rpt_dimensions[X] + rpt_region[X], \
+                   rpt_dimensions[X] + rpt_region[Y], \
+                   rpt_region[2], rpt_region[3] ) )
+            elif 0 > rpt_dimensions[X]:
+               pass
+            elif 0 < rpt_dimensions[Y]:
+               # Blit the main sprite.
+               sprite.blit( sprite_s2, \
+                  (SCREEN_MULT * rpt_dimensions[Y], \
+                  SCREEN_MULT * rpt_dimensions[Y]),
+                  (0, 0, \
+                  SCREEN_MULT * self.sprite_sz_px, \
+                  SCREEN_MULT * self.sprite_sz_px) )
+
+               blit_rpt_y = self.sprite_sz_px - rpt_dimensions[Y]
+               while blit_rpt_y < 1000: #rpt_dimensions[Y] * 2 + self.sprite_sz_px:
+                  sprite.blit( sprite_s2, \
+                     (SCREEN_MULT * rpt_dimensions[Y], \
+                         SCREEN_MULT * blit_rpt_y),
+                     (SCREEN_MULT * rpt_region[X], \
+                        SCREEN_MULT * rpt_region[Y], \
+                        SCREEN_MULT * rpt_region[2], \
+                        SCREEN_MULT * rpt_region[3]) )
+
+                  #pygame.draw.circle( sprite, (0, 255, 0), \
+                  #   (SCREEN_MULT * (rpt_dimensions[Y]), \
+                  #      blit_rpt_y), SCREEN_MULT)
+                  blit_rpt_y += rpt_region[3]
+
+            elif 0 > rpt_dimensions[Y]:
+               pass
+
          if colorkey:
             sprite.set_colorkey( colorkey )
          else:
             # If no color key provided, grab probable BG color.
             trans_color = sprite.get_at( (0, 0) )
             sprite.set_colorkey( trans_color )
+
          self.sprites[dir_in].append( sprite )
 
          # Make inverted copies for opposite direction.
@@ -286,12 +357,14 @@ class Mobile:
    def spawn( \
    coords, spritesheet, walk_sprites, jump_sprites, accel_max, behavior, \
    dir_in=SPRITE_KEY_RIGHT, dir_jump_in=SPRITE_KEY_RIGHT_JUMP, \
-   frames_max=30, margin=1 ):
+   frames_max=30, margin=1, rpt_region=None, rpt_dimensions=None ):
       mob = Mobile( coords )
       mob.set_sprites( \
-         spritesheet, walk_sprites, dir_in, sprite_margin=margin )
+         spritesheet, walk_sprites, dir_in, sprite_margin=margin,
+         rpt_region=rpt_region, rpt_dimensions=rpt_dimensions )
       mob.set_sprites( \
          spritesheet, jump_sprites, dir_jump_in, \
+         rpt_region=rpt_region, rpt_dimensions=rpt_dimensions, \
          sprite_margin=margin )
       mob.set_accel_max( accel_max )
       mob.sprite_frames_max = frames_max
@@ -451,6 +524,10 @@ class Screen:
          self.screen.blit( \
             img, (dest[X] * self.multiplier, dest[Y] * self.multiplier) )
 
+      pygame.draw.circle( self.screen, (255, 0, 0), \
+         (dest[X] * self.multiplier, dest[Y] * self.multiplier), \
+         self.multiplier )
+
    def get_draw_x( self, x ):
       return x - self.vwindow[X]
 
@@ -510,10 +587,20 @@ def main():
    mobiles = []
    mobiles.append( player )
 
-   mobiles.append( Mobile.spawn(
-      (random.randint( 30, 160 ), 200), sprites,
-      [SPRITE_ID_WHITE_GUY_WALK_1, SPRITE_ID_WHITE_GUY_WALK_2],
-      [SPRITE_ID_WHITE_GUY_JUMP_1, SPRITE_ID_WHITE_GUY_JUMP_2],
+   flag = Mobile.spawn( \
+      (100, 100), sprites, \
+      [SPRITE_ID_BLUE_FLAG_1, SPRITE_ID_BLUE_FLAG_2], \
+      [SPRITE_ID_BLUE_FLAG_1, SPRITE_ID_BLUE_FLAG_2], \
+      (6, 4), BEHAVIOR_NEUTRAL, \
+      dir_in=SPRITE_KEY_LEFT, dir_jump_in=SPRITE_KEY_LEFT_JUMP,
+      rpt_region=(0, 20, 20, 1), rpt_dimensions=(0, 20) )
+   flag.animate_on_stand = True
+   mobiles.append( flag )
+
+   mobiles.append( Mobile.spawn( \
+      (random.randint( 30, 160 ), 200), sprites, \
+      [SPRITE_ID_WHITE_GUY_WALK_1, SPRITE_ID_WHITE_GUY_WALK_2], \
+      [SPRITE_ID_WHITE_GUY_JUMP_1, SPRITE_ID_WHITE_GUY_JUMP_2], \
       (6, 4), BEHAVIOR_RANDOM ) )
 
    while running:
