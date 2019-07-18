@@ -395,14 +395,35 @@ class Level:
       self.vwindow = (left_x, SCREEN_HEIGHT / 2, \
          SCREEN_WIDTH, SCREEN_HEIGHT)
 
+class Screen:
+
+   def __init__( self, size, multiplier ):
+      self.screen = pygame.display.set_mode( \
+         (size[X] * multiplier, size[Y] * multiplier) )
+
+      self.multiplier = multiplier
+      self.size = size
+
+   def blit( self, img, dest=(0, 0), dimensions=None ):
+
+      if dimensions:
+         self.screen.blit( \
+            img, (dest[X] * self.multiplier, dest[Y] * self.multiplier), \
+            (dimensions[X] * self.multiplier, \
+            dimensions[Y] * self.multiplier, \
+            dimensions[2] * self.multiplier, \
+            dimensions[3] * self.multiplier) )
+      else:
+         self.screen.blit( \
+            img, (dest[X] * self.multiplier, dest[Y] * self.multiplier) )
+
 def main():
 
    key_accel = (0, 0)
    left_edge = 0
 
    pygame.init()
-   screen = pygame.display.set_mode( \
-      (SCREEN_MULT * SCREEN_WIDTH, SCREEN_MULT * SCREEN_HEIGHT) )
+   screen = Screen( (SCREEN_WIDTH, SCREEN_HEIGHT), 2 )
    running = True
    clock = pygame.time.Clock()
 
@@ -481,7 +502,7 @@ def main():
 
       bg_offset_x = -1 * \
          (player.coords[X] * SCREEN_WIDTH / level.get_max_width())
-      screen.blit( bg, (SCREEN_MULT * bg_offset_x, 0) )
+      screen.blit( bg, (bg_offset_x, 0) )
 
       # Draw map foreground objects.
       for y in range( 0, len( level.level_map ) ):
@@ -494,12 +515,11 @@ def main():
             screen_draw_y = level.block_sz_px * y
 
             screen.blit( sprites, \
-               (SCREEN_MULT * screen_draw_x,
-               SCREEN_MULT * screen_draw_y), \
-               (SCREEN_MULT * level.get_block_sprite_x( map_cell ), \
-               SCREEN_MULT * level.get_block_sprite_y( map_cell ), \
-               SCREEN_MULT * level.block_sz_px, \
-               SCREEN_MULT * level.block_sz_px) )
+               (screen_draw_x, screen_draw_y), \
+               (level.get_block_sprite_x( map_cell ), \
+               level.get_block_sprite_y( map_cell ), \
+               level.block_sz_px, \
+               level.block_sz_px) )
 
       # Update and draw the mobiles.
       for mob in mobiles:
@@ -514,11 +534,8 @@ def main():
             continue
 
          screen.blit( mob.get_sprite(), \
-            (SCREEN_MULT * mob_draw_x, \
-            SCREEN_MULT * (mob.coords[Y] - mob.sprite_sz_px)), \
-            (0, 0, \
-            SCREEN_MULT * mob.sprite_sz_px, \
-            SCREEN_MULT * mob.sprite_sz_px) )
+            (mob_draw_x, (mob.coords[Y] - mob.sprite_sz_px)), \
+            (0, 0, mob.sprite_sz_px, mob.sprite_sz_px) )
 
       # Show some useful system info on-screen.
       font = pygame.font.SysFont( 'Sans', 14, False, False )
