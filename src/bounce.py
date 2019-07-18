@@ -4,6 +4,8 @@ import pygame
 import pdb
 import random
 
+DEBUG=False
+
 ACCEL_LEFT  = (-1, 0)
 ACCEL_RIGHT = ( 1, 0)
 ACCEL_DOWN  = ( 0, 1)
@@ -252,6 +254,29 @@ class Mobile:
    def set_accel_max( self, accel_max ):
       self.accel_max = accel_max
 
+   def blit_repeated_y( \
+   self, sprite_dest, sprite_src, rpt_dimensions, rpt_region ):
+      # Blit the main sprite.
+      sprite_dest.blit( sprite_src, \
+         (SCREEN_MULT * rpt_dimensions[Y], \
+         SCREEN_MULT * rpt_dimensions[Y]),
+         (0, 0, \
+         SCREEN_MULT * self.sprite_sz_px, \
+         SCREEN_MULT * self.sprite_sz_px) )
+
+      # Repeatedly blit the repeated region from the original.
+      blit_rpt_y = self.sprite_sz_px - rpt_dimensions[Y]
+      while blit_rpt_y < 1000:
+         sprite_dest.blit( sprite_src, \
+            (SCREEN_MULT * rpt_dimensions[Y], \
+                SCREEN_MULT * blit_rpt_y),
+            (SCREEN_MULT * rpt_region[X], \
+               SCREEN_MULT * rpt_region[Y], \
+               SCREEN_MULT * rpt_region[2], \
+               SCREEN_MULT * rpt_region[3]) )
+
+         blit_rpt_y += rpt_region[3]
+
    def set_sprites( self, sprites, walk_list, dir_in, \
    colorkey=None, sprite_margin=0, sprite_sz_px=SPRITE_SZ_PX, \
    rpt_region=None, rpt_dimensions=None ):
@@ -290,46 +315,14 @@ class Mobile:
                (SCREEN_MULT * self.sprite_sz_px, \
                SCREEN_MULT * self.sprite_sz_px) )
 
+            # TODO: Fill in the other directions.
             if 0 < rpt_dimensions[X]:
-               # Blit the main sprite.
-               sprite.blit( sprite_s2, \
-                  (SCREEN_MULT * rpt_dimensions[X], \
-                   SCREEN_MULT * rpt_dimensions[X]),
-                  (0, 0, self.sprite_sz_px * SCREEN_MULT, \
-                   self.sprite_sz_px * SCREEN_MULT) )
-
-               # And blit the repeated part.
-               sprite.blit( sprite_s2, \
-                  (self.sprite_sz_px + rpt_dimensions[X], rpt_dimensions[X]), \
-                  (rpt_dimensions[X] + rpt_region[X], \
-                   rpt_dimensions[X] + rpt_region[Y], \
-                   rpt_region[2], rpt_region[3] ) )
+               pass
             elif 0 > rpt_dimensions[X]:
                pass
             elif 0 < rpt_dimensions[Y]:
-               # Blit the main sprite.
-               sprite.blit( sprite_s2, \
-                  (SCREEN_MULT * rpt_dimensions[Y], \
-                  SCREEN_MULT * rpt_dimensions[Y]),
-                  (0, 0, \
-                  SCREEN_MULT * self.sprite_sz_px, \
-                  SCREEN_MULT * self.sprite_sz_px) )
-
-               blit_rpt_y = self.sprite_sz_px - rpt_dimensions[Y]
-               while blit_rpt_y < 1000: #rpt_dimensions[Y] * 2 + self.sprite_sz_px:
-                  sprite.blit( sprite_s2, \
-                     (SCREEN_MULT * rpt_dimensions[Y], \
-                         SCREEN_MULT * blit_rpt_y),
-                     (SCREEN_MULT * rpt_region[X], \
-                        SCREEN_MULT * rpt_region[Y], \
-                        SCREEN_MULT * rpt_region[2], \
-                        SCREEN_MULT * rpt_region[3]) )
-
-                  #pygame.draw.circle( sprite, (0, 255, 0), \
-                  #   (SCREEN_MULT * (rpt_dimensions[Y]), \
-                  #      blit_rpt_y), SCREEN_MULT)
-                  blit_rpt_y += rpt_region[3]
-
+               self.blit_repeated_y( 
+                  sprite, sprite_s2, rpt_dimensions, rpt_region )
             elif 0 > rpt_dimensions[Y]:
                pass
 
@@ -524,9 +517,10 @@ class Screen:
          self.screen.blit( \
             img, (dest[X] * self.multiplier, dest[Y] * self.multiplier) )
 
-      pygame.draw.circle( self.screen, (255, 0, 0), \
-         (dest[X] * self.multiplier, dest[Y] * self.multiplier), \
-         self.multiplier )
+      if DEBUG:
+         pygame.draw.circle( self.screen, (255, 0, 0), \
+            (dest[X] * self.multiplier, dest[Y] * self.multiplier), \
+            self.multiplier )
 
    def get_draw_x( self, x ):
       return x - self.vwindow[X]
@@ -685,16 +679,17 @@ def main():
             (mob_draw_x, (mob.coords[Y] - mob.sprite_sz_px)), \
             (0, 0, mob.sprite_sz_px, mob.sprite_sz_px) )
 
-      # Show some useful system info on-screen.
-      font = pygame.font.SysFont( 'Sans', 14, False, False )
-      stats = font.render( \
-         '{}a_x: {}, a_y: {}, f: {}, j: {}, x: {}, y: {}'.format( \
-            '-' if key_accel == ACCEL_LEFT else
-               '+' if key_accel == ACCEL_RIGHT else '',
-            player.accel_factor[X], player.accel_factor[Y],
-            player.sprite_frame_seq, player.jump_factor, \
-            player.coords[X], player.coords[Y] ), True, (255, 0, 0) )
-      screen.blit( stats, [10, 10] )
+      if DEBUG:
+         # Show some useful system info on-screen.
+         font = pygame.font.SysFont( 'Sans', 14, False, False )
+         stats = font.render( \
+            '{}a_x: {}, a_y: {}, f: {}, j: {}, x: {}, y: {}'.format( \
+               '-' if key_accel == ACCEL_LEFT else
+                  '+' if key_accel == ACCEL_RIGHT else '',
+               player.accel_factor[X], player.accel_factor[Y],
+               player.sprite_frame_seq, player.jump_factor, \
+               player.coords[X], player.coords[Y] ), True, (255, 0, 0) )
+         screen.blit( stats, [10, 10] )
 
       pygame.display.flip()
 
