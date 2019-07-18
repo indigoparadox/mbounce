@@ -117,11 +117,11 @@ class Mobile:
          elif self.jump_factor == 0 and self.accel_factor[Y] == 0:
             self.jump_factor = -20
 
-   def update_accel( self ):
+   def update_accel( self, level ):
       if self.coords[Y] / self.sprite_sz_px >= len( MAP[0] ) - 1:
          self.accel_factor[X] = -2
 
-      floor = self.get_floor()
+      floor = self.get_floor( level )
 
       if self.coords[Y] < floor:
          # If we're above the floor, then fall (accel according to gravity).
@@ -170,17 +170,17 @@ class Mobile:
       # Apply acceleration to coordinates.
       self.coords = (x, y)
 
-   def animate( self ):
+   def animate( self, level ):
       if not self.is_moving():
          return
 
       if 0 < self.accel_factor[X]:
-         if 0 < self.coords[Y] != self.get_floor():
+         if 0 < self.coords[Y] != self.get_floor( level ):
             self.facing = SPRITE_KEY_RIGHT_JUMP
          else:
             self.facing = SPRITE_KEY_RIGHT
       if 0 > self.accel_factor[X]:
-         if 0 < self.coords[Y] != self.get_floor():
+         if 0 < self.coords[Y] != self.get_floor( level ):
             self.facing = SPRITE_KEY_LEFT_JUMP
          else:
             self.facing = SPRITE_KEY_LEFT
@@ -195,7 +195,7 @@ class Mobile:
 
    def is_on_screen( self, screen ):
       if self.sprite_sz_px * -1 > self.coords[X] or \
-      screen.size[X] + self.sprite_sz_px <= self.coords[X]:
+      screen.vwindow[X] + screen.size[X] + self.sprite_sz_px <= self.coords[X]:
          return False
       return True
 
@@ -205,26 +205,26 @@ class Mobile:
    def is_moving( self ):
       return 0 != self.accel_factor[X]
 
-   def get_floor( self ):
-      # Convert blocks to pixels.
-      if self.coords[1] >= 0:
-         hunt_block = (self.coords[0] / self.sprite_sz_px, \
-            (self.coords[1] / self.sprite_sz_px) - 1)
+   def get_floor( self, level ):
+      # Convert pixels to blocks.
+      if self.coords[Y] >= 0:
+         hunt_block = (self.coords[X] / self.sprite_sz_px, \
+            (self.coords[Y] / self.sprite_sz_px) - 1)
       else:
-         hunt_block = (self.coords[0] / self.sprite_sz_px, 1)
+         hunt_block = (self.coords[X] / self.sprite_sz_px, 1)
 
       # Search for the floor in this column.
-      while hunt_block[1] < len( MAP ) - 1 and \
-      hunt_block[1] >= 0 and \
-      MAP[hunt_block[1]][hunt_block[0]] < 0:
-         hunt_block = (hunt_block[0], hunt_block[1] + 1)
+      while hunt_block[Y] < (level.get_height() / level.block_sz_px) - 1 and \
+      hunt_block[Y] >= 0 and \
+      level.is_empty_block( level.get_block( hunt_block[X], hunt_block[Y] ) ):
+         hunt_block = (hunt_block[X], hunt_block[Y] + 1)
 
       # Don't fall through the screen bottom.
-      floor = hunt_block[1] * self.sprite_sz_px
-      if floor < (SCREEN_MULT * SCREEN_HEIGHT):
+      floor = hunt_block[Y] * self.sprite_sz_px
+      if floor < level.get_height():
          return floor
       else:
-         return (SCREEN_MULT * SCREEN_HEIGHT)
+         return level.get_height()
 
    def get_sprite( self ):
       return self.sprites[self.facing][self.sprite_frame_seq]
@@ -272,7 +272,6 @@ class Level:
 
       self.block_sz_px = block_sz_px
       
-      self.vwindow = (0, 0, SCREEN_WIDTH, SCREEN_HEIGHT)
       self.boundaries = (0, 0, \
          len( level_map[0] ) * self.block_sz_px, \
          len( level_map ) * self.block_sz_px)
@@ -307,7 +306,7 @@ class Level:
             self.level_map[y].append( BLOCK_GRASS_DOWN_FILL )
             continue
 
-         elif -1 == self.level_map[y][last_x]:
+         elif self.is_empty_block( self.level_map[y][last_x] ):
             # Last block in this row was empty.
             # Level out or keep sloping up.
 
@@ -344,17 +343,19 @@ class Level:
 
          elif BLOCK_GRASS == self.level_map[y][last_x]:
             # Last block in this row was grass level.
-            if BLOCK_EMPTY != self.level_map[last_y][last_x]:
+            if not self.is_empty_block( self.level_map[last_y][last_x] ):
                # Put dirt under whatever's on top of us for now.
                self.level_map[y].append( BLOCK_DIRT_FILL )
             elif random.randint( 0, plateau_odds_max ) < 1 and 0 < next_y:
                self.level_map[y].append( BLOCK_GRASS_DOWN )
             else:
                self.level_map[y].append( BLOCK_GRASS )
+               if 10 < random.randint( 0, 50 ):
+                  self.level_map[last_y][x] = 46
 
          elif BLOCK_GRASS_UP == self.level_map[y][last_x]:
             # Last block in this row was grass up.
-            if BLOCK_EMPTY != self.level_map[last_y][last_x]:
+            if not self.is_empty_block( self.level_map[last_y][last_x] ):
                # Put dirt under whatever's on top of us for now.
                self.level_map[y].append( BLOCK_DIRT_FILL )
             else:
@@ -369,8 +370,16 @@ class Level:
          #else:
          #   self.level_map[y].append( 123 )
 
-   def get_draw_x( self, x ):
-      return x - self.vwindow[X]
+   def is_empty_block( self, block_id ):
+      if BLOCK_EMPTY == block_id or 46 == block_id:
+         return True
+      return False
+
+   def get_block( self, x, y ):
+      if 0 > x or len( self.level_map[0] ) <= x or \
+      0 > y or len( self.level_map ) <= y:
+         return -1
+      return self.level_map[y][x]
 
    def get_static_width( self ):
       return len( self.level_map[0] ) * self.block_sz_px
@@ -389,24 +398,13 @@ class Level:
       return (SPRITESHEET_MARGIN_PX + \
          SPRITE_BORDER_PX + ((block_id / 30) * SPRITE_OUTER_SZ_PX))
 
-   def set_vwindow_center( self, x ):
-      left_x = x - (SCREEN_HEIGHT / 2)
-
-      # Don't overflow off the far left or right of the level.
-      if 0 >= left_x:
-         left_x = 0
-      if left_x + SCREEN_WIDTH > self.get_max_width():
-         left_x = self.get_max_width() - SCREEN_WIDTH
-
-      self.vwindow = (left_x, SCREEN_HEIGHT / 2, \
-         SCREEN_WIDTH, SCREEN_HEIGHT)
-
 class Screen:
 
    def __init__( self, size, multiplier ):
       self.screen = pygame.display.set_mode( \
          (size[X] * multiplier, size[Y] * multiplier) )
 
+      self.vwindow = (0, 0, SCREEN_WIDTH, SCREEN_HEIGHT)
       self.multiplier = multiplier
       self.size = size
 
@@ -427,6 +425,21 @@ class Screen:
       else:
          self.screen.blit( \
             img, (dest[X] * self.multiplier, dest[Y] * self.multiplier) )
+
+   def get_draw_x( self, x ):
+      return x - self.vwindow[X]
+
+   def set_vwindow_center( self, x, level ):
+      left_x = x - (SCREEN_HEIGHT / 2)
+
+      # Don't overflow off the far left or right of the level.
+      if 0 >= left_x:
+         left_x = 0
+      if left_x + SCREEN_WIDTH > level.get_max_width():
+         left_x = level.get_max_width() - SCREEN_WIDTH
+
+      self.vwindow = (left_x, SCREEN_HEIGHT / 2, \
+         SCREEN_WIDTH, SCREEN_HEIGHT)
 
 def main():
 
@@ -506,8 +519,8 @@ def main():
       # Apply input acceleration based on state grabbed above.
       player.accel( key_accel, accel_mult=2 )
 
-      level.set_vwindow_center( player.coords[X] )
-      while level.get_static_width() < level.vwindow[X] + SCREEN_WIDTH and \
+      screen.set_vwindow_center( player.coords[X], level )
+      while level.get_static_width() < screen.vwindow[X] + SCREEN_WIDTH and \
       level.get_static_width() < level.get_max_width():
          level.extend_x()
 
@@ -522,7 +535,7 @@ def main():
             if 0 > map_cell:
                continue
 
-            screen_draw_x = level.get_draw_x( level.block_sz_px * x )
+            screen_draw_x = screen.get_draw_x( level.block_sz_px * x )
             screen_draw_y = level.block_sz_px * y
 
             screen.blit( sprites, \
@@ -539,11 +552,11 @@ def main():
             continue
 
          mob.do_behavior()
-         mob.update_accel()
+         mob.update_accel( level )
          mob.update_coords( level )
-         mob.animate()
+         mob.animate( level )
 
-         mob_draw_x = level.get_draw_x( mob.coords[X] )
+         mob_draw_x = screen.get_draw_x( mob.coords[X] )
          screen.blit( mob.get_sprite(), \
             (mob_draw_x, (mob.coords[Y] - mob.sprite_sz_px)), \
             (0, 0, mob.sprite_sz_px, mob.sprite_sz_px) )
