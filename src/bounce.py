@@ -246,7 +246,7 @@ class Mobile:
 
 class Level:
 
-   def __init__( self, level_map ):
+   def __init__( self, level_map, max_blocks_x ):
       
       self.vwindow = (0, 0, SCREEN_WIDTH, SCREEN_HEIGHT)
       self.boundaries = (0, 0, \
@@ -254,6 +254,7 @@ class Level:
          len( level_map ) * SPRITE_SZ_PX)
 
       self.level_map = level_map
+      self.max_blocks_x = max_blocks_x
 
    def extend_x( self ):
       
@@ -264,12 +265,15 @@ class Level:
          # ...y.
          last_x = len( self.level_map[y] ) - 1
          x = len( self.level_map[y] )
-         if y + 1 < len( self.level_map ) - 1:
+         if y < len( self.level_map ) - 1:
             next_y = y + 1
          else:
             next_y = -1
          last_y = y - 1
-
+         plateau_odds_max = 4
+         block_ceiling = 5 # Grass comes at most this many blocks down from top.
+   
+         # Corner cases to ensure neat under-slope fills.
          if 0 < last_y and \
          BLOCK_GRASS_UP == self.level_map[last_y][x]:
             self.level_map[y].append( BLOCK_GRASS_UP_FILL )
@@ -279,21 +283,22 @@ class Level:
             self.level_map[y].append( BLOCK_GRASS_DOWN_FILL )
             continue
 
-         if -1 == self.level_map[y][last_x]:
+         elif -1 == self.level_map[y][last_x]:
             # Last block in this row was empty.
             # Level out or keep sloping up.
 
             if BLOCK_GRASS == self.level_map[next_y][last_x]:
                # Last block in next row has grass, so flip a coin for a slope.
-               if random.randint( 1, 2 ) > 1:
+               if random.randint( 0, plateau_odds_max ) < 1 and \
+               y > block_ceiling:
                   self.level_map[y].append( BLOCK_GRASS_UP )
                else:
                   self.level_map[y].append( BLOCK_EMPTY )
-            elif 0 < last_y and \
+            elif 0 <= last_y and \
             BLOCK_GRASS_DOWN == self.level_map[last_y][last_x]:
                # Last block in the last row was a down slope.
                # Flop a coin to see if it keeps going down or levels out.
-               if random.randint( 1, 2 ) > 1:
+               if random.randint( 0, plateau_odds_max ) < 1:
                   self.level_map[y].append( BLOCK_GRASS_DOWN )
                else:
                   self.level_map[y].append( BLOCK_GRASS )
@@ -304,29 +309,30 @@ class Level:
             # Last block in this row was a down fill.
             # Level out or keep sloping down.
 
-            if random.randint( 1, 2 ) > 1 and 0 < next_y:
+            if random.randint( 0, plateau_odds_max ) < 1 and 0 < next_y:
                self.level_map[y].append( BLOCK_GRASS_DOWN )
             else:
                self.level_map[y].append( BLOCK_GRASS )
 
-
          elif BLOCK_DIRT_FILL == self.level_map[y][last_x] or \
          BLOCK_GRASS_UP_FILL == self.level_map[y][last_x]:
-            #if BLOCK_GRASS_UP == self.level_map[last_y][last_x]:
-            #   self.level_map[y].append( BLOCK_GRASS_UP_FILL )
-            #elif BLOCK_GRASS_DOWN == self.level_map[last_y][last_x]:
-            #   self.level_map[y].append( BLOCK_GRASS_DOWN_FILL )
-            #else:
             self.level_map[y].append( BLOCK_DIRT_FILL )
 
-         elif BLOCK_GRASS == self.level_map[y][last_x] or \
-         BLOCK_GRASS_UP == self.level_map[y][last_x]:
-            # Last block in this row was grass level or up.
+         elif BLOCK_GRASS == self.level_map[y][last_x]:
+            # Last block in this row was grass level.
             if BLOCK_EMPTY != self.level_map[last_y][last_x]:
                # Put dirt under whatever's on top of us for now.
                self.level_map[y].append( BLOCK_DIRT_FILL )
-            elif random.randint( 1, 2 ) > 1 and 0 < next_y:
+            elif random.randint( 0, plateau_odds_max ) < 1 and 0 < next_y:
                self.level_map[y].append( BLOCK_GRASS_DOWN )
+            else:
+               self.level_map[y].append( BLOCK_GRASS )
+
+         elif BLOCK_GRASS_UP == self.level_map[y][last_x]:
+            # Last block in this row was grass up.
+            if BLOCK_EMPTY != self.level_map[last_y][last_x]:
+               # Put dirt under whatever's on top of us for now.
+               self.level_map[y].append( BLOCK_DIRT_FILL )
             else:
                self.level_map[y].append( BLOCK_GRASS )
 
@@ -342,8 +348,11 @@ class Level:
    def get_draw_x( self, x ):
       return x - self.vwindow[X]
 
-   def get_width( self ):
+   def get_static_width( self ):
       return len( self.level_map[0] ) * SPRITE_SZ_PX
+
+   def get_max_width( self ):
+      return self.max_blocks_x * SPRITE_SZ_PX
 
    def get_block_sprite_x( self, block_id ):
       return (SPRITESHEET_MARGIN_PX + \
@@ -368,7 +377,7 @@ def main():
    running = True
    clock = pygame.time.Clock()
 
-   level = Level( MAP )
+   level = Level( MAP, 500 )
 
    # Load the spritesheet.
    sprites = pygame.image.load( 'spritesheet.png' )
@@ -437,12 +446,13 @@ def main():
       player.accel( key_accel, accel_mult=2 )
 
       level.set_vwindow_center( player.coords[X] )
-      while level.get_width() < level.vwindow[X] + SCREEN_WIDTH:
-         print level.get_width()
-         print level.vwindow
+      while level.get_static_width() < level.vwindow[X] + SCREEN_WIDTH and \
+      level.get_static_width() < level.get_max_width():
          level.extend_x()
 
-      screen.blit( bg, (SCREEN_MULT * level.get_draw_x( 0 ), 0) )
+      bg_offset_x = -1 * \
+         (player.coords[X] * SCREEN_WIDTH / level.get_max_width())
+      screen.blit( bg, (SCREEN_MULT * bg_offset_x, 0) )
 
       # Draw map foreground objects.
       for y in range( 0, len( level.level_map ) ):
