@@ -279,7 +279,8 @@ class Level:
       self.level_map = level_map
       self.max_blocks_x = max_blocks_x
 
-   def extend_x( self ):
+   #  @param block_ceiling Grass comes at most this many blocks down from top.
+   def extend_x( self, grass_odds=50, block_ceiling=5, plateau_odds_max=4 ):
       
       for y in range( 0, len( self.level_map ) ):
          # Figure out useful coords for back and to the left:
@@ -293,8 +294,6 @@ class Level:
          else:
             next_y = -1
          last_y = y - 1
-         plateau_odds_max = 4
-         block_ceiling = 5 # Grass comes at most this many blocks down from top.
    
          # Corner cases to ensure neat under-slope fills.
          if 0 < last_y and \
@@ -350,7 +349,7 @@ class Level:
                self.level_map[y].append( BLOCK_GRASS_DOWN )
             else:
                self.level_map[y].append( BLOCK_GRASS )
-               if 10 < random.randint( 0, 50 ):
+               if 10 > random.randint( 0, grass_odds ):
                   self.level_map[last_y][x] = 46
 
          elif BLOCK_GRASS_UP == self.level_map[y][last_x]:
@@ -363,12 +362,6 @@ class Level:
 
          else:
             self.level_map[y].append( BLOCK_EMPTY )
-
-         #   if 0 < last_y and  self.level_map[last_y][last_x]:
-         #   self.level_map[y].append( -1 )
-         #   if 123 self.level_map[y][last_x]:
-         #else:
-         #   self.level_map[y].append( 123 )
 
    def is_empty_block( self, block_id ):
       if BLOCK_EMPTY == block_id or 46 == block_id:
