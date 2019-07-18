@@ -70,6 +70,7 @@ class Mobile:
       self.coords = coords
       self.behavior = BEHAVIOR_NEUTRAL
       self.behave_timer = 0
+      self.sprite_sz_px = 0
 
    def accel( self, accel_dir, accel_mult=1 ) :
       i = 0
@@ -117,7 +118,7 @@ class Mobile:
             self.jump_factor = -20
 
    def update_accel( self ):
-      if self.coords[Y] / SPRITE_SZ_PX >= len( MAP[0] ) - 1:
+      if self.coords[Y] / self.sprite_sz_px >= len( MAP[0] ) - 1:
          self.accel_factor[X] = -2
 
       floor = self.get_floor()
@@ -157,12 +158,12 @@ class Mobile:
       # Don't overflow off the far left or right of the level.
       if x < 0:
          x = 0
-      elif x + SPRITE_SZ_PX > level.get_max_width():
-         x = level.get_max_width() - SPRITE_SZ_PX
+      elif x + self.sprite_sz_px > level.get_max_width():
+         x = level.get_max_width() - self.sprite_sz_px
 
       # Don't overflow off the top or bottom of the level.
-      if y < SPRITE_SZ_PX:
-         y = SPRITE_SZ_PX
+      if y < self.sprite_sz_px:
+         y = self.sprite_sz_px
       elif y > level.get_height():
          y = level.get_height()
 
@@ -201,10 +202,10 @@ class Mobile:
    def get_floor( self ):
       # Convert blocks to pixels.
       if self.coords[1] >= 0:
-         hunt_block = (self.coords[0] / SPRITE_SZ_PX, \
-            (self.coords[1] / SPRITE_SZ_PX) - 1)
+         hunt_block = (self.coords[0] / self.sprite_sz_px, \
+            (self.coords[1] / self.sprite_sz_px) - 1)
       else:
-         hunt_block = (self.coords[0] / SPRITE_SZ_PX, 1)
+         hunt_block = (self.coords[0] / self.sprite_sz_px, 1)
 
       # Search for the floor in this column.
       while hunt_block[1] < len( MAP ) - 1 and \
@@ -213,7 +214,7 @@ class Mobile:
          hunt_block = (hunt_block[0], hunt_block[1] + 1)
 
       # Don't fall through the screen bottom.
-      floor = hunt_block[1] * SPRITE_SZ_PX
+      floor = hunt_block[1] * self.sprite_sz_px
       if floor < (SCREEN_MULT * SCREEN_HEIGHT):
          return floor
       else:
@@ -226,18 +227,20 @@ class Mobile:
       self.accel_max = accel_max
 
    def set_sprites( self, sprites, walk_list, dir_in, \
-   colorkey=None, sprite_margin=0 ):
+   colorkey=None, sprite_margin=0, sprite_sz_px=SPRITE_SZ_PX ):
+
+      self.sprite_sz_px = sprite_sz_px
 
       # Cut out the sprites.
       for xy in walk_list:
          sprite = pygame.Surface( \
-            (SCREEN_MULT * SPRITE_SZ_PX, SCREEN_MULT * SPRITE_SZ_PX) )
+            (SCREEN_MULT * self.sprite_sz_px, SCREEN_MULT * self.sprite_sz_px) )
          sprite.blit( sprites, (0, 0), (
             SCREEN_MULT * (SPRITESHEET_MARGIN_PX + SPRITE_BORDER_PX + \
                (SPRITE_OUTER_SZ_PX * xy[X])),
             SCREEN_MULT * (SPRITESHEET_MARGIN_PX + SPRITE_BORDER_PX + \
                (SPRITE_OUTER_SZ_PX * xy[Y])),
-            SCREEN_MULT * SPRITE_SZ_PX, SCREEN_MULT * SPRITE_SZ_PX) )
+            SCREEN_MULT * self.sprite_sz_px, SCREEN_MULT * self.sprite_sz_px) )
          if colorkey:
             sprite.set_colorkey( colorkey )
          else:
@@ -259,12 +262,14 @@ class Mobile:
 
 class Level:
 
-   def __init__( self, level_map, max_blocks_x ):
+   def __init__( self, level_map, max_blocks_x, block_sz_px=SPRITE_SZ_PX ):
+
+      self.block_sz_px = block_sz_px
       
       self.vwindow = (0, 0, SCREEN_WIDTH, SCREEN_HEIGHT)
       self.boundaries = (0, 0, \
-         len( level_map[0] ) * SPRITE_SZ_PX, \
-         len( level_map ) * SPRITE_SZ_PX)
+         len( level_map[0] ) * self.block_sz_px, \
+         len( level_map ) * self.block_sz_px)
 
       self.level_map = level_map
       self.max_blocks_x = max_blocks_x
@@ -362,10 +367,10 @@ class Level:
       return x - self.vwindow[X]
 
    def get_static_width( self ):
-      return len( self.level_map[0] ) * SPRITE_SZ_PX
+      return len( self.level_map[0] ) * self.block_sz_px
 
    def get_max_width( self ):
-      return self.max_blocks_x * SPRITE_SZ_PX
+      return self.max_blocks_x * self.block_sz_px
 
    def get_height( self ):
       return SCREEN_HEIGHT
@@ -485,16 +490,16 @@ def main():
             if 0 > map_cell:
                continue
 
-            screen_draw_x = level.get_draw_x( SPRITE_SZ_PX * x )
-            screen_draw_y = SPRITE_SZ_PX * y
+            screen_draw_x = level.get_draw_x( level.block_sz_px * x )
+            screen_draw_y = level.block_sz_px * y
 
             screen.blit( sprites, \
                (SCREEN_MULT * screen_draw_x,
                SCREEN_MULT * screen_draw_y), \
                (SCREEN_MULT * level.get_block_sprite_x( map_cell ), \
                SCREEN_MULT * level.get_block_sprite_y( map_cell ), \
-               SCREEN_MULT * SPRITE_SZ_PX, \
-               SCREEN_MULT * SPRITE_SZ_PX) )
+               SCREEN_MULT * level.block_sz_px, \
+               SCREEN_MULT * level.block_sz_px) )
 
       # Update and draw the mobiles.
       for mob in mobiles:
@@ -510,10 +515,10 @@ def main():
 
          screen.blit( mob.get_sprite(), \
             (SCREEN_MULT * mob_draw_x, \
-            SCREEN_MULT * (mob.coords[Y] - SPRITE_SZ_PX)), \
+            SCREEN_MULT * (mob.coords[Y] - mob.sprite_sz_px)), \
             (0, 0, \
-            SCREEN_MULT * SPRITE_SZ_PX, \
-            SCREEN_MULT * SPRITE_SZ_PX) )
+            SCREEN_MULT * mob.sprite_sz_px, \
+            SCREEN_MULT * mob.sprite_sz_px) )
 
       # Show some useful system info on-screen.
       font = pygame.font.SysFont( 'Sans', 14, False, False )
