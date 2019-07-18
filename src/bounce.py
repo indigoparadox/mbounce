@@ -14,6 +14,11 @@ SPRITE_KEY_RIGHT = 1
 SPRITE_KEY_LEFT_JUMP = 2
 SPRITE_KEY_RIGHT_JUMP = 3
 
+SPRITE_ID_WHITE_GUY_WALK_1=(28, 4)
+SPRITE_ID_WHITE_GUY_WALK_2=(29, 4)
+SPRITE_ID_WHITE_GUY_JUMP_1=(26, 4)
+SPRITE_ID_WHITE_GUY_JUMP_2=(27, 4)
+
 SCREEN_MULT = 2
 SPRITESHEET_MARGIN_PX = 1
 SPRITE_SZ_PX = 21
@@ -36,6 +41,8 @@ Y = 1
 
 BEHAVIOR_NEUTRAL = 0
 BEHAVIOR_RANDOM = 1
+BEHAVIOR_WALK_LEFT = 2
+BEHAVIOR_BOUNCE_LEFT = 3
 
 #     1,  2,  3,  4,  5,  6,  7,  8,  9, 10, 11, 12, 13, 14, 15, 16, 17, 18
 MAP = [
@@ -116,6 +123,11 @@ class Mobile:
             self.accel( ACCEL_LEFT, accel_mult=8 )
          elif self.jump_factor == 0 and self.accel_factor[Y] == 0:
             self.jump_factor = -20
+      
+      elif BEHAVIOR_WALK_LEFT == self.behavior:
+
+         if self.accel_max[X] < self.accel_factor[X]:
+            self.accel( ACCEL_LEFT, accel_mult=2 )
 
    def update_accel( self, level ):
       if self.coords[Y] / self.sprite_sz_px >= len( MAP[0] ) - 1:
@@ -265,6 +277,20 @@ class Mobile:
             self.sprites[SPRITE_KEY_RIGHT_JUMP].append( sprite_opposite )
          elif SPRITE_KEY_RIGHT_JUMP == dir_in:
             self.sprites[SPRITE_KEY_LEFT_JUMP].append( sprite_opposite )
+
+   @staticmethod
+   def spawn( \
+   coords, spritesheet, walk_sprites, jump_sprites, accel_max, behavior, \
+   margin=1 ):
+      mob = Mobile( coords )
+      mob.set_sprites( \
+         spritesheet, walk_sprites, SPRITE_KEY_RIGHT, sprite_margin=margin )
+      mob.set_sprites( \
+         spritesheet, jump_sprites, SPRITE_KEY_RIGHT_JUMP, \
+         sprite_margin=margin )
+      mob.set_accel_max( accel_max )
+      mob.behavior = behavior
+      return mob
 
 class Level:
 
@@ -478,14 +504,11 @@ def main():
    mobiles = []
    mobiles.append( player )
 
-   mob = Mobile( (random.randint( 30, 160 ), 200) )
-   mob.set_sprites( \
-      sprites, [(28, 4), (29, 4)], SPRITE_KEY_RIGHT, sprite_margin=1 )
-   mob.set_sprites( \
-      sprites, [(26, 4), (27, 4)], SPRITE_KEY_RIGHT_JUMP, sprite_margin=1 )
-   mob.set_accel_max( (6, 4) )
-   mob.behavior = BEHAVIOR_RANDOM
-   mobiles.append( mob )
+   mobiles.append( Mobile.spawn(
+      (random.randint( 30, 160 ), 200), sprites,
+      [SPRITE_ID_WHITE_GUY_WALK_1, SPRITE_ID_WHITE_GUY_WALK_2],
+      [SPRITE_ID_WHITE_GUY_JUMP_1, SPRITE_ID_WHITE_GUY_JUMP_2],
+      (6, 4), BEHAVIOR_RANDOM ) )
 
    while running:
 
@@ -516,6 +539,13 @@ def main():
       while level.get_static_width() < screen.vwindow[X] + SCREEN_WIDTH and \
       level.get_static_width() < level.get_max_width():
          level.extend_x()
+         if random.randint( 0, 100 ) < 10:
+            print 'spawning...'
+            mobiles.append( Mobile.spawn(
+               (screen.vwindow[X] + SCREEN_WIDTH, 100), sprites,
+               [SPRITE_ID_WHITE_GUY_WALK_1, SPRITE_ID_WHITE_GUY_WALK_2],
+               [SPRITE_ID_WHITE_GUY_JUMP_1, SPRITE_ID_WHITE_GUY_JUMP_2],
+               (6, 4), BEHAVIOR_RANDOM ) )
 
       bg_offset_x = -1 * \
          (player.coords[X] * SCREEN_WIDTH / level.get_max_width())
