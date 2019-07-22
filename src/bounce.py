@@ -97,6 +97,7 @@ class Mobile( object ):
       self.accel_max = accel_max
       self.sprite_frames_max = frames_max
       self.behavior = behavior
+      self.corporeal = True
 
       if spritesheet and walk_sprites:
          self.set_sprites( \
@@ -165,10 +166,10 @@ class Mobile( object ):
 
       floor = self.get_floor( level )
 
-      if self.coords[Y] < floor:
+      if self.coords[Y] < floor or not self.corporeal:
          # If we're above the floor, then fall (accel according to gravity).
          self.accel( ACCEL_DOWN )
-      elif self.coords[Y] > floor:
+      elif self.coords[Y] > floor and self.corporeal:
          # Get back up above the floor!
          self.jump_factor = 0
          self.accel_factor = (self.accel_factor[X], 0)
@@ -186,7 +187,7 @@ class Mobile( object ):
          self.accel( ACCEL_RIGHT )
 
       if self.coords[Y] + self.accel_factor[Y] + self.jump_factor >= \
-      floor:
+      floor and self.corporeal:
          # Set gravity to whatever it needs to be for us to "land" on the last
          # tick.
          self.jump_factor = 0
@@ -206,7 +207,7 @@ class Mobile( object ):
       # Don't overflow off the top or bottom of the level.
       if y < self.sprite_sz_px:
          y = self.sprite_sz_px
-      elif y > level.get_height():
+      elif y > level.get_height() and self.corporeal:
          y = level.get_height()
 
       # Apply acceleration to coordinates.
@@ -362,6 +363,12 @@ class Mobile( object ):
             self.sprites[SPRITE_KEY_RIGHT_JUMP].append( sprite_opposite )
          elif SPRITE_KEY_RIGHT_JUMP == dir_in:
             self.sprites[SPRITE_KEY_LEFT_JUMP].append( sprite_opposite )
+
+   def collide( self, mob ):
+      pass
+
+   def kill( self ):
+      self.corporeal = False
 
 class ColorFlag( Mobile ):
 
@@ -694,6 +701,9 @@ def main():
          mob.update_accel( level )
          mob.update_coords( level )
          mob.animate( level )
+
+         if mob != player and mob.collide( player ):
+            mob.kill()
 
          mob_draw_x = screen.get_draw_x( mob.coords[X] )
          screen.blit( mob.get_sprite(), \
