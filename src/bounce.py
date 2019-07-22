@@ -11,6 +11,11 @@ ACCEL_RIGHT = ( 1, 0)
 ACCEL_DOWN  = ( 0, 1)
 ACCEL_UP    = ( 0,-1)
 
+COLOR_YELLOW = 1
+COLOR_GREEN = 2
+COLOR_RED = 3
+COLOR_BLUE = 4
+
 SPRITE_KEY_LEFT = 0
 SPRITE_KEY_RIGHT = 1
 SPRITE_KEY_LEFT_JUMP = 2
@@ -23,9 +28,6 @@ SPRITE_ID_WHITE_GUY_JUMP_2=(27, 4)
 
 SPRITE_ID_GREEN_SLIME_WALK_1=(20, 8)
 SPRITE_ID_GREEN_SLIME_WALK_2=(21, 8)
-
-SPRITE_ID_BLUE_FLAG_1=(12, 10)
-SPRITE_ID_BLUE_FLAG_2=(12, 11)
 
 SCREEN_MULT = 2
 SPRITESHEET_MARGIN_PX = 1
@@ -66,16 +68,21 @@ MAP = [
    [123,123,123,123,123,123,123,156,152,157,123,123,123,123,123,123,123,123]
 ]
 
-class Mobile:
+class Mobile( object ):
 
-   sprite_frames_max = 30
+   ACCEL_MAX_DEFAULT = (3, 5)
+
    jump_decel_inc = 1
    jump_rate = -20
-   accel_max = (3, 5)
    behave_timer_max = 10
    animate_on_stand = False
 
-   def __init__( self, coords ):
+   def __init__( self, \
+   coords, spritesheet=None, walk_sprites=None, jump_sprites=None, \
+   accel_max=ACCEL_MAX_DEFAULT, behavior=BEHAVIOR_NEUTRAL, \
+   dir_in=SPRITE_KEY_RIGHT, dir_jump_in=SPRITE_KEY_RIGHT_JUMP, \
+   sprite_sz_px = SPRITE_SZ_PX,
+   frames_max=30, margin=1, rpt_region=None, rpt_dimensions=None ):
       self.sprites = [[], [], [], []]
       self.accel_factor = (0, 0)
       self.facing = SPRITE_KEY_LEFT
@@ -84,9 +91,22 @@ class Mobile:
       self.jump_factor = 0
       self.sprite_frame_seq = 0
       self.coords = coords
-      self.behavior = BEHAVIOR_NEUTRAL
+      self.behavior = behavior
       self.behave_timer = 0
-      self.sprite_sz_px = 0
+      self.sprite_sz_px = sprite_sz_px
+      self.accel_max = accel_max
+      self.sprite_frames_max = frames_max
+      self.behavior = behavior
+
+      if spritesheet and walk_sprites:
+         self.set_sprites( \
+            spritesheet, walk_sprites, dir_in, sprite_margin=margin,
+            rpt_region=rpt_region, rpt_dimensions=rpt_dimensions )
+      if spritesheet and jump_sprites:
+         self.set_sprites( \
+            spritesheet, jump_sprites, dir_jump_in, \
+            rpt_region=rpt_region, rpt_dimensions=rpt_dimensions, \
+            sprite_margin=margin )
 
    def accel( self, accel_dir, accel_mult=1 ) :
       i = 0
@@ -251,9 +271,6 @@ class Mobile:
    def get_sprite( self ):
       return self.sprites[self.facing][self.sprite_frame_seq]
 
-   def set_accel_max( self, accel_max ):
-      self.accel_max = accel_max
-
    def blit_repeated_y( \
    self, sprite_dest, sprite_src, rpt_dimensions, rpt_region ):
       # Blit the main sprite.
@@ -346,23 +363,34 @@ class Mobile:
          elif SPRITE_KEY_RIGHT_JUMP == dir_in:
             self.sprites[SPRITE_KEY_LEFT_JUMP].append( sprite_opposite )
 
-   @staticmethod
-   def spawn( \
-   coords, spritesheet, walk_sprites, jump_sprites, accel_max, behavior, \
-   dir_in=SPRITE_KEY_RIGHT, dir_jump_in=SPRITE_KEY_RIGHT_JUMP, \
-   frames_max=30, margin=1, rpt_region=None, rpt_dimensions=None ):
-      mob = Mobile( coords )
-      mob.set_sprites( \
-         spritesheet, walk_sprites, dir_in, sprite_margin=margin,
-         rpt_region=rpt_region, rpt_dimensions=rpt_dimensions )
-      mob.set_sprites( \
-         spritesheet, jump_sprites, dir_jump_in, \
-         rpt_region=rpt_region, rpt_dimensions=rpt_dimensions, \
-         sprite_margin=margin )
-      mob.set_accel_max( accel_max )
-      mob.sprite_frames_max = frames_max
-      mob.behavior = behavior
-      return mob
+class ColorFlag( Mobile ):
+
+   SPRITE_ID_BLUE_FLAG_1=(12, 10)
+   SPRITE_ID_BLUE_FLAG_2=(12, 11)
+
+   FLAG_SPRITES = {
+      COLOR_BLUE: [SPRITE_ID_BLUE_FLAG_1, SPRITE_ID_BLUE_FLAG_2]
+   }
+
+   def __init__( self, sprites, color ):
+      super( ColorFlag, self ).__init__( \
+         (100, 100), sprites,
+         ColorFlag.FLAG_SPRITES[color], ColorFlag.FLAG_SPRITES[color], \
+         (6, 4), BEHAVIOR_NEUTRAL, \
+         dir_in=SPRITE_KEY_LEFT, dir_jump_in=SPRITE_KEY_LEFT_JUMP, \
+         rpt_region=(0, 20, 20, 1), rpt_dimensions=(0, 20) )
+
+      self.animate_on_stand = True
+
+#class ColorBlock( Mobile ):
+#
+#class ColorLever( Mobile ):
+#
+#class ColorLock( Mobile ):
+#
+#class ColorKey( Mobile ):
+#
+#class ColorGem( Mobile ):
 
 class Level:
 
@@ -575,23 +603,16 @@ def main():
       sprites, [(28, 0), (29, 0)], SPRITE_KEY_RIGHT, sprite_margin=1 )
    player.set_sprites( \
       sprites, [(26, 0), (27, 0)], SPRITE_KEY_RIGHT_JUMP, sprite_margin=1 )
-   player.set_accel_max( (6, 5) )
+   player.accel_max = (6, 5)
 
    # Create mobiles.
    mobiles = []
    mobiles.append( player )
 
-   flag = Mobile.spawn( \
-      (100, 100), sprites, \
-      [SPRITE_ID_BLUE_FLAG_1, SPRITE_ID_BLUE_FLAG_2], \
-      [SPRITE_ID_BLUE_FLAG_1, SPRITE_ID_BLUE_FLAG_2], \
-      (6, 4), BEHAVIOR_NEUTRAL, \
-      dir_in=SPRITE_KEY_LEFT, dir_jump_in=SPRITE_KEY_LEFT_JUMP,
-      rpt_region=(0, 20, 20, 1), rpt_dimensions=(0, 20) )
-   flag.animate_on_stand = True
+   flag = ColorFlag( sprites, COLOR_BLUE )
    mobiles.append( flag )
 
-   mobiles.append( Mobile.spawn( \
+   mobiles.append( Mobile( \
       (random.randint( 30, 160 ), 200), sprites, \
       [SPRITE_ID_WHITE_GUY_WALK_1, SPRITE_ID_WHITE_GUY_WALK_2], \
       [SPRITE_ID_WHITE_GUY_JUMP_1, SPRITE_ID_WHITE_GUY_JUMP_2], \
@@ -627,14 +648,14 @@ def main():
       level.get_static_width() < level.get_max_width():
          level.extend_x()
          if random.randint( 0, 1000 ) < 50:
-            mobiles.append( Mobile.spawn(
+            mobiles.append( Mobile(
                (screen.vwindow[X] + SCREEN_WIDTH, 100), sprites,
                [SPRITE_ID_WHITE_GUY_WALK_1, SPRITE_ID_WHITE_GUY_WALK_2],
                [SPRITE_ID_WHITE_GUY_JUMP_1, SPRITE_ID_WHITE_GUY_JUMP_2],
                (6, 4), BEHAVIOR_RANDOM ) )
 
          elif random.randint( 0, 1000 ) < 100:
-            mobiles.append( Mobile.spawn(
+            mobiles.append( Mobile(
                (screen.vwindow[X] + SCREEN_WIDTH, 100), sprites,
                [SPRITE_ID_GREEN_SLIME_WALK_1, SPRITE_ID_GREEN_SLIME_WALK_2],
                [SPRITE_ID_GREEN_SLIME_WALK_1, SPRITE_ID_GREEN_SLIME_WALK_2],
