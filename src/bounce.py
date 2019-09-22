@@ -153,7 +153,7 @@ class Mobile( object ):
                 self.accel( ACCEL_LEFT, accel_mult=8 )
             elif self.jump_factor == 0 and self.accel_factor[Y] == 0:
                 self.jump_factor = -20
-        
+
         elif BEHAVIOR_WALK_LEFT == self.behavior:
 
             if self.accel_max[X] * -1 < self.accel_factor[X] or \
@@ -257,8 +257,7 @@ class Mobile( object ):
             hunt_block = (self.coords[X] / self.sprite_sz_px, 1)
 
         # Search for the floor in this column.
-        while hunt_block[Y] < (level.get_height() / level.block_sz_px) - 1 and \
-        hunt_block[Y] >= 0 and \
+        while (level.get_height() / level.block_sz_px) - 1 > hunt_block[Y] >= 0 and \
         level.is_empty_block( level.get_block( hunt_block[X], hunt_block[Y] ) ):
             hunt_block = (hunt_block[X], hunt_block[Y] + 1)
 
@@ -339,7 +338,7 @@ class Mobile( object ):
                 elif 0 > rpt_dimensions[X]:
                     pass
                 elif 0 < rpt_dimensions[Y]:
-                    self.blit_repeated_y( 
+                    self.blit_repeated_y(
                         sprite, sprite_s2, rpt_dimensions, rpt_region )
                 elif 0 > rpt_dimensions[Y]:
                     pass
@@ -404,7 +403,7 @@ class Level:
     def __init__( self, level_map, max_blocks_x, block_sz_px=SPRITE_SZ_PX ):
 
         self.block_sz_px = block_sz_px
-        
+
         self.boundaries = (0, 0, \
             len( level_map[0] ) * self.block_sz_px, \
             len( level_map ) * self.block_sz_px)
@@ -414,7 +413,7 @@ class Level:
 
     #  @param block_ceiling Grass comes at most this many blocks down from top.
     def extend_x( self, grass_odds=50, block_ceiling=5, plateau_odds_max=4 ):
-        
+
         for y in range( 0, len( self.level_map ) ):
             # Figure out useful coords for back and to the left:
             #
@@ -427,7 +426,7 @@ class Level:
             else:
                 next_y = -1
             last_y = y - 1
-    
+
             # Corner cases to ensure neat under-slope fills.
             if 0 < last_y and \
             BLOCK_GRASS_UP == self.level_map[last_y][x]:
