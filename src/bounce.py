@@ -7,6 +7,7 @@ DEBUG=False
 
 ACCEL_LEFT  = (-1, 0)
 ACCEL_RIGHT = ( 1, 0)
+# noinspection PyPep8
 ACCEL_DOWN  = ( 0, 1)
 ACCEL_UP     = ( 0,-1)
 
@@ -27,15 +28,6 @@ SPRITE_ID_WHITE_GUY_JUMP_2=(27, 4)
 
 SPRITE_ID_GREEN_SLIME_WALK_1=(20, 8)
 SPRITE_ID_GREEN_SLIME_WALK_2=(21, 8)
-
-SCREEN_MULT = 2
-SPRITESHEET_MARGIN_PX = 1
-SPRITE_SZ_PX = 21
-SPRITE_BORDER_PX = 1
-SPRITE_OUTER_SZ_PX = (2 * SPRITE_BORDER_PX) + SPRITE_SZ_PX
-
-SCREEN_WIDTH = 16 * SPRITE_SZ_PX
-SCREEN_HEIGHT = 10 * SPRITE_SZ_PX
 
 BLOCK_EMPTY = -1
 BLOCK_GRASS = 123
@@ -77,10 +69,9 @@ class Mobile( object ):
     animate_on_stand = False
 
     def __init__( self, \
-    coords, spritesheet=None, walk_sprites=None, jump_sprites=None, \
+    coords, sprite_sz_px, spritesheet=None, walk_sprites=None, jump_sprites=None, \
     accel_max=ACCEL_MAX_DEFAULT, behavior=BEHAVIOR_NEUTRAL, \
     dir_in=SPRITE_KEY_RIGHT, dir_jump_in=SPRITE_KEY_RIGHT_JUMP, \
-    sprite_sz_px = SPRITE_SZ_PX,
     frames_max=30, margin=1, rpt_region=None, rpt_dimensions=None ):
         self.sprites = [[], [], [], []]
         self.accel_factor = (0, 0)
@@ -271,30 +262,30 @@ class Mobile( object ):
         return self.sprites[self.facing][self.sprite_frame_seq]
 
     def blit_repeated_y( \
-    self, sprite_dest, sprite_src, rpt_dimensions, rpt_region ):
+    self, sprite_dest, sprite_src, rpt_dimensions, rpt_region, screen_mult ):
         # Blit the main sprite.
         sprite_dest.blit( sprite_src, \
-            (SCREEN_MULT * rpt_dimensions[Y], \
-            SCREEN_MULT * rpt_dimensions[Y]),
+            (screen_mult * rpt_dimensions[Y], \
+            screen_mult * rpt_dimensions[Y]),
             (0, 0, \
-            SCREEN_MULT * self.sprite_sz_px, \
-            SCREEN_MULT * self.sprite_sz_px) )
+            screen_mult * self.sprite_sz_px, \
+            screen_mult * self.sprite_sz_px) )
 
         # Repeatedly blit the repeated region from the original.
         blit_rpt_y = self.sprite_sz_px - rpt_dimensions[Y]
         while blit_rpt_y < 1000:
             sprite_dest.blit( sprite_src, \
-                (SCREEN_MULT * rpt_dimensions[Y], \
-                     SCREEN_MULT * blit_rpt_y),
-                (SCREEN_MULT * rpt_region[X], \
-                    SCREEN_MULT * rpt_region[Y], \
-                    SCREEN_MULT * rpt_region[2], \
-                    SCREEN_MULT * rpt_region[3]) )
+                (screen_mult * rpt_dimensions[Y], \
+                     screen_mult * blit_rpt_y),
+                (screen_mult * rpt_region[X], \
+                    screen_mult * rpt_region[Y], \
+                    screen_mult * rpt_region[2], \
+                    screen_mult * rpt_region[3]) )
 
             blit_rpt_y += rpt_region[3]
 
     def set_sprites( self, sprites, walk_list, dir_in, \
-    colorkey=None, sprite_margin=0, sprite_sz_px=SPRITE_SZ_PX, \
+    sprite_margin, sprite_sz_px, colorkey=None, \
     rpt_region=None, rpt_dimensions=None ):
 
         self.sprite_sz_px = sprite_sz_px
@@ -571,6 +562,15 @@ class Screen:
             SCREEN_WIDTH, SCREEN_HEIGHT)
 
 def main():
+
+    SCREEN_MULT = 2
+    SPRITESHEET_MARGIN_PX = 1
+    SPRITE_SZ_PX = 21
+    SPRITE_BORDER_PX = 1
+    SPRITE_OUTER_SZ_PX = (2 * SPRITE_BORDER_PX) + SPRITE_SZ_PX
+
+    SCREEN_WIDTH = 16 * SPRITE_SZ_PX
+    SCREEN_HEIGHT = 10 * SPRITE_SZ_PX
 
     key_accel = (0, 0)
 
