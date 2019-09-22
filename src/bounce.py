@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 
 import pygame
-import pdb
 import random
 
 DEBUG=False
@@ -574,7 +573,6 @@ class Screen:
 def main():
 
     key_accel = (0, 0)
-    left_edge = 0
 
     pygame.init()
     screen = Screen( (SCREEN_WIDTH, SCREEN_HEIGHT), 2 )
@@ -612,8 +610,7 @@ def main():
     player.accel_max = (6, 5)
 
     # Create mobiles.
-    mobiles = []
-    mobiles.append( player )
+    mobiles = [player]
 
     flag = ColorFlag( sprites, COLOR_BLUE )
     mobiles.append( flag )
